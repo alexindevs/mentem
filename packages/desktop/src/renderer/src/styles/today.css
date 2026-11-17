@@ -103,3 +103,15 @@ button.task-row__title:hover { color: var(--accent); }
 .today__mini { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg); color: var(--text); font-size: 13px; font-weight: 500; transition: border-color var(--dur-base) var(--ease-out), transform 90ms var(--ease-out); }
 .today__mini:hover { border-color: var(--accent); }
 .today__mini:active { transform: scale(0.96); }
+
+/* Meetings in the day and the week */
+.routine--meeting { width: 100%; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background-color var(--dur-base) var(--ease-out), transform 90ms var(--ease-out); }
+.routine--meeting:hover { background: var(--surface); }
+.routine--meeting:active { transform: scale(0.99); }
+.routine--meeting .routine__title { font-weight: 600; }
+.routine__range { color: var(--muted); font-variant-numeric: tabular-nums; }
+.week-meeting { display: grid; gap: 2px; width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius-md); background: var(--surface); color: var(--text); font: inherit; text-align: left; cursor: pointer; transition: transform 90ms var(--ease-out), background-color var(--dur-base) var(--ease-out); }
+.week-meeting:hover { background: var(--accent-subtle); }
+.week-meeting:active { transform: scale(0.98); }
+.week-meeting--past { color: var(--muted); }
+.week-meeting .t-caption { color: var(--muted); font-variant-numeric: tabular-nums; }

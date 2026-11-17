@@ -45,3 +45,29 @@ describe("adding a work block", () => {
     expect(hasDuplicateName([on("Work", 9, 11), { name: "Work", enabled: false, startHour: 13, endHour: 15 }])).toBe(false);
   });
 });
+
+import { shortcutFor } from "../src/renderer/src/lib/shortcuts";
+
+describe("keyboard shortcuts", () => {
+  const press = (key: string, extra: Partial<{ ctrlKey: boolean; altKey: boolean; metaKey: boolean; repeat: boolean }> = {}) => ({ key, ctrlKey: false, altKey: false, metaKey: false, ...extra });
+
+  it("maps the keys to what they do", () => {
+    expect(shortcutFor(press("n"), false, false)).toEqual({ type: "quick-add" });
+    expect(shortcutFor(press("M"), false, false)).toEqual({ type: "meeting" });
+    expect(shortcutFor(press("d"), false, false)).toEqual({ type: "done" });
+    expect(shortcutFor(press("p"), false, false)).toEqual({ type: "pause" });
+    expect(shortcutFor(press("3"), false, false)).toEqual({ type: "page", page: "Meetings" });
+    expect(shortcutFor(press("6"), false, false)).toEqual({ type: "page", page: "Reports" });
+  });
+
+  it("leaves typing, system shortcuts and open drawers alone", () => {
+    expect(shortcutFor(press("n"), true, false)).toBeNull();
+    expect(shortcutFor(press("n"), false, true)).toBeNull();
+    expect(shortcutFor(press("n", { ctrlKey: true }), false, false)).toBeNull();
+    expect(shortcutFor(press("d", { metaKey: true }), false, false)).toBeNull();
+    expect(shortcutFor(press("p", { repeat: true }), false, false)).toBeNull();
+    expect(shortcutFor(press("7"), false, false)).toBeNull();
+    expect(shortcutFor(press("0"), false, false)).toBeNull();
+    expect(shortcutFor(press("x"), false, false)).toBeNull();
+  });
+});

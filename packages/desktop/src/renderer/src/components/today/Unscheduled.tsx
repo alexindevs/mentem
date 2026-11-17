@@ -1,9 +1,11 @@
 import { AnimatePresence } from "motion/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { TodayData } from "@shared/api";
 import { DRAG_TYPE, TaskRow } from "./TaskRow";
 
 interface UnscheduledProps {
+  /** Changes each time the add field should take the focus. */
+  focusSignal: number;
   tasks: TodayData["unscheduled"];
   onCreate(title: string): void;
   onToggle(id: string, done: boolean): void;
@@ -12,9 +14,13 @@ interface UnscheduledProps {
   onDrop(id: string): void;
 }
 
-export function Unscheduled({ tasks, onCreate, onToggle, onOpen, onDrop }: UnscheduledProps) {
+export function Unscheduled({ focusSignal, tasks, onCreate, onToggle, onOpen, onDrop }: UnscheduledProps) {
   const [draft, setDraft] = useState("");
   const [over, setOver] = useState(false);
+  const field = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (focusSignal > 0) field.current?.focus();
+  }, [focusSignal]);
   return (
     <aside
       className={`unscheduled ${over ? "unscheduled--over" : ""}`}
@@ -44,7 +50,7 @@ export function Unscheduled({ tasks, onCreate, onToggle, onOpen, onDrop }: Unsch
           setDraft("");
         }}
       >
-        <input className="input" aria-label="Add a task" placeholder="Add a task…" maxLength={160} value={draft} onChange={(e) => setDraft(e.target.value)} />
+        <input ref={field} className="input" aria-label="Add a task" placeholder="Add a task…" maxLength={160} value={draft} onChange={(e) => setDraft(e.target.value)} />
       </form>
       <ul className="task-list task-list--loose">
         <AnimatePresence initial={false}>

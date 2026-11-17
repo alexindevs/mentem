@@ -253,6 +253,51 @@ export const MIGRATIONS: Migration[] = [
       DROP TABLE series_occurrence_keep;
     `,
   },
+  {
+    version: 5,
+    name: "meetings",
+    sql: `
+      -- A meeting on one day, or the first of a repeating series (the rule is applied on read).
+      CREATE TABLE meeting (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        date TEXT NOT NULL,
+        start_min INTEGER NOT NULL CHECK (start_min BETWEEN 0 AND 1439),
+        end_min INTEGER NOT NULL CHECK (end_min BETWEEN 1 AND 1440),
+        link TEXT,
+        notes TEXT NOT NULL DEFAULT '',
+        attendees TEXT NOT NULL DEFAULT '[]',
+        repeat_rule TEXT,
+        created_at INTEGER NOT NULL,
+        CHECK (end_min > start_min)
+      );
+      CREATE INDEX meeting_date ON meeting(date);
+
+      -- One day of a repeating meeting that was removed on its own.
+      CREATE TABLE meeting_skip (
+        meeting_id TEXT NOT NULL REFERENCES meeting(id) ON DELETE CASCADE,
+        date TEXT NOT NULL,
+        PRIMARY KEY (meeting_id, date)
+      );
+    `,
+  },
+  {
+    version: 6,
+    name: "meeting_kind_and_minutes",
+    sql: `
+      ALTER TABLE meeting ADD COLUMN kind TEXT NOT NULL DEFAULT 'online';
+      ALTER TABLE meeting ADD COLUMN place TEXT;
+
+      -- What was said, kept for each day a meeting happened on, so a repeating meeting has its own minutes every time.
+      CREATE TABLE meeting_minutes (
+        meeting_id TEXT NOT NULL REFERENCES meeting(id) ON DELETE CASCADE,
+        date TEXT NOT NULL,
+        text TEXT NOT NULL,
+        updated_at INTEGER NOT NULL,
+        PRIMARY KEY (meeting_id, date)
+      );
+    `,
+  },
 ];
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

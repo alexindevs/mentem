@@ -1,5 +1,5 @@
 import * as core from "@mentem/core";
-import type { LocalDate, RepeatRule, Slot, Store, Task, TimerEngine } from "@mentem/core";
+import type { LocalDate, Meeting, RepeatRule, Slot, Store, Task, TimerEngine } from "@mentem/core";
 import { type Parsed, flag, flagAll, has, parseArgs } from "./args";
 import type { ControlCommand } from "./control";
 
@@ -116,6 +116,7 @@ function today(ctx: Context): Result {
   const out: string[] = [date];
   const entries = [
     ...store.routineFor(date).map((r) => ({ at: r.startMin, text: `  ${hhmm(r.startMin)}${r.endMin !== null ? `-${hhmm(r.endMin)}` : ""}  ${r.title}` })),
+    ...store.meetingsOn(date).map((m) => ({ at: m.startMin, text: `  ${hhmm(m.startMin)}-${hhmm(m.endMin)}  Meeting: ${m.title}` })),
     ...blocks.map((b) => ({ at: b.startMin, text: [`${b.name} ${hhmm(b.startMin)}-${hhmm(b.endMin)}`, ...store.blockTasks(date, b.slot, true).map((t) => `  ${line(t)}`)].join("\n") })),
   ].sort((a, b) => a.at - b.at);
   out.push(...entries.map((e) => e.text));
@@ -141,6 +142,62 @@ function now(ctx: Context): Result {
   if (s.kind === "rest") return ok("Rest.");
   if (s.kind === "no-template") return ok("No template for today.");
   return ok("Nothing is running.");
+}
+
+function meetingRef(store: Store, ref: string | undefined): Meeting {
+  if (!ref) throw new Usage("Which meeting? Give its id.");
+  const matches = store.listMeetings().filter((m) => m.id === ref || m.id.startsWith(ref));
+  const exact = matches.find((m) => m.id === ref);
+  if (exact) return exact;
+  if (matches.length === 1) return matches[0]!;
+  throw new Usage(matches.length ? `"${ref}" matches more than one meeting. Use more of the id.` : `No meeting with id "${ref}".`);
+}
+
+function meetingCmd(ctx: Context, p: Parsed): Result {
+  const { store } = ctx;
+  const [, sub, ...rest] = p.words;
+  const todayDate = core.dateOf(store.clock.now());
+  const on = flag(p, "date") ? day(flag(p, "date")!, todayDate) : todayDate;
+  switch (sub) {
+    case "add": {
+      const title = rest.join(" ").trim();
+      if (!title) throw new Usage('meeting add needs a title, such as: meeting add "Standup" --from 9:30 --to 10:00');
+      if (!flag(p, "from") || !flag(p, "to")) throw new Usage("meeting add needs --from and --to, such as --from 9:30 --to 10:00.");
+      const made = store.createMeeting({
+        title,
+        date: on,
+        startMin: core.parseTime(flag(p, "from")!),
+        endMin: core.parseTime(flag(p, "to")!),
+        kind: flag(p, "place") ? "in-person" : "online",
+        link: flag(p, "link") ?? null,
+        place: flag(p, "place") ?? null,
+        notes: flag(p, "notes") ?? "",
+        attendees: flagAll(p, "with"),
+        repeat: repeatRule(p, on),
+      });
+      return ok(`Added ${made.id}: ${made.title} on ${made.date}, ${hhmm(made.startMin)}-${hhmm(made.endMin)}${made.repeat ? `. ${core.describeRule(made.repeat)}` : ""}`);
+    }
+    case "list": {
+      const list = store.meetingsOn(on);
+      return ok(...(list.length ? [on, ...list.map((m) => `  ${m.id}  ${hhmm(m.startMin)}-${hhmm(m.endMin)}  ${m.title}${m.kind === "in-person" ? ` (${m.place ?? "in person"})` : ""}`)] : [`No meetings on ${on}.`]));
+    }
+    case "minutes": {
+      const m = meetingRef(store, rest[0]);
+      const text = rest.slice(1).join(" ").trim();
+      if (text) {
+        store.setMinutes(m.id, on, text);
+        return ok(`Saved the minutes for ${m.title} on ${on}.`);
+      }
+      return ok(store.getMinutes(m.id, on) || `No minutes for ${m.title} on ${on}.`);
+    }
+    case "rm": {
+      const m = meetingRef(store, rest[0]);
+      store.deleteMeeting(m.id, flag(p, "date") ? on : undefined);
+      return ok(flag(p, "date") && m.repeat ? `Removed ${m.title} on ${on}.` : `Removed ${m.title}.`);
+    }
+    default:
+      throw new Usage("meeting takes add, list, minutes or rm.");
+  }
 }
 
 function taskCmd(ctx: Context, p: Parsed): Result {
@@ -415,6 +472,7 @@ async function dataCmd(ctx: Context, p: Parsed): Promise<Result> {
 const HELP = `today | unscheduled | now | week | report [--week DATE]
 task add|list|edit|done|reopen|rm      assign|move ID --date D --block B [--repeat daily|weekly|monthly|yearly --every N --days mon,wed]
 unassign ID                            repeat ID off
+meeting add "T" --from 9:30 --to 10 [--date D --link URL --with NAME --place P --repeat ...]  |  meeting list|minutes|rm
 project add|show                       deliverable add --project P "title"
 template list|add|edit|rm              schedule set --days mon-fri --template T | set-day DATE --template T
 config set week-end|pomodoro|app-name|cli-name
@@ -436,6 +494,7 @@ export async function runCommand(argv: string[], ctx: Context): Promise<Result> 
       case "week": return weekCmd(ctx);
       case "report": return reportCmd(ctx, p);
       case "task": return taskCmd(ctx, p);
+      case "meeting": return meetingCmd(ctx, p);
       case "assign": return place(ctx, p, "assign");
       case "move": return place(ctx, p, "move");
       case "repeat": {

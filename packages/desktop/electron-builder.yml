@@ -1,0 +1,50 @@
+appId: com.mentem.app
+productName: Mentem
+copyright: Copyright © Alexin
+directories:
+  output: release
+  buildResources: assets
+files:
+  - out/**
+  - assets/**
+  - "!assets/Mentem-Logo.png"
+  - package.json
+asar: true
+# The SQLite module is native code and has to sit outside the archive to load.
+asarUnpack:
+  - "**/node_modules/better-sqlite3/**"
+npmRebuild: true
+publish:
+  provider: github
+  owner: alexindevs
+  repo: mentem
+  releaseType: release
+
+win:
+  target:
+    - target: nsis
+      arch: x64
+  icon: assets/icon.png
+  artifactName: Mentem-Setup-${version}.exe
+nsis:
+  oneClick: true
+  perMachine: false
+  # Uninstalling or updating never touches the data in %APPDATA%\mentem.
+  deleteAppDataOnUninstall: false
+  runAfterFinish: true
+  shortcutName: Mentem
+  createDesktopShortcut: false
+  createStartMenuShortcut: true
+
+linux:
+  target:
+    - target: deb
+      arch: x64
+  icon: assets/icon.png
+  category: Utility
+  maintainer: Alexin <alexindevs@gmail.com>
+  synopsis: Planner and focus timer
+  description: A planner and focus timer that runs your day through work blocks, pomodoros and the task in front of you.
+  # Not "mentem", which is the name of the command-line launcher.
+  executableName: mentem-app
+  artifactName: mentem_${version}_${arch}.deb

@@ -158,11 +158,6 @@ HANDOFF.md
 !README.md
 
 # Local tooling and editor folders
-.claude/
-.codex/
-.agents/
-.cursor/
-.impeccable/
 .vscode/
 .idea/
 .DS_Store
@@ -171,3 +166,6 @@ Thumbs.db
 # Build output
 out/
 *.exe
+
+# Installer output
+release/

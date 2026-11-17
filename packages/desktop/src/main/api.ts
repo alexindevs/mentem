@@ -111,6 +111,7 @@ export function createApi({ store, engine, core, info, refresh, host }: Deps): A
         endMin: item.endMin,
         past: !after && (item.endMin ?? item.startMin) <= minute,
       })),
+      meetings: store.meetingsOn(listDate).map((m) => ({ id: m.id, title: m.title, startMin: m.startMin, endMin: m.endMin, hasLink: m.link !== null, past: !after && m.endMin <= minute })),
       unscheduled: unscheduled.map((t) => view(t, date)),
       dueSoon: hasTemplate
         ? []

@@ -7,5 +7,8 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "oxlint && oxfmt --check",
     "lint:fix": "oxlint --fix && oxfmt --write"
+  },
+  "devDependencies": {
+    "tslib": "^2.9.1"
   }
 }

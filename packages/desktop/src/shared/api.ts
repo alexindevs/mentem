@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { RepeatRule, Settings } from "@mentem/core";
-import type { ChangeSummary, NewProject, PlanningData, CliInfo, SnapshotView, ProjectCard, ProjectDetail, Prompts, ReportDetail, ReportSummary, SessionsData, TaskDetail, TaskPatch, TemplateDetail, TemplatesData, WeekData } from "./pages";
+import type { ChangeSummary, UpdateState, MeetingDetail, MeetingListItem, MeetingRow, NewProject, PlanningData, CliInfo, SnapshotView, ProjectCard, ProjectDetail, Prompts, ReportDetail, ReportSummary, SessionsData, TaskDetail, TaskPatch, TemplateDetail, TemplatesData, WeekData } from "./pages";
 export type * from "./pages";
 import { MAX_BLOCKS } from "./pages";
 export { CHANNEL, TIMER_CHANNEL } from "./channel";
@@ -94,7 +94,7 @@ export interface AppInfo {
   startHash: string;
 }
 
-export type TimerKind = "work" | "break" | "routine" | "between" | "rest" | "no-template";
+export type TimerKind = "work" | "break" | "routine" | "meeting" | "between" | "rest" | "no-template";
 
 export interface RoutineRun {
   title: string;
@@ -104,6 +104,18 @@ export interface RoutineRun {
   endsAt: number | null;
   remainingMs: number;
   totalMs: number;
+}
+
+export interface MeetingRun {
+  id: string;
+  title: string;
+  startMin: number;
+  endMin: number;
+  /** Epoch milliseconds when it ends. */
+  endsAt: number;
+  remainingMs: number;
+  totalMs: number;
+  link: string | null;
 }
 
 /** What the Now card needs, with times as plain numbers so it can cross the bridge. */
@@ -136,12 +148,30 @@ export interface TimerView {
   /** The routine item that comes next today, for the "Next:" line during a routine item. */
   nextLabel: string | null;
   routinePaused: boolean;
+  /** The meeting running now, if any. The pomodoro waits for it. */
+  meeting: MeetingRun | null;
+  /** The next meeting today, for a quiet "Next" line. */
+  nextMeeting: { title: string; startMin: number } | null;
   /** In an empty block you chose to leave empty. */
   idle: boolean;
   dayOff: boolean;
   dayComplete: boolean;
   wakeMin: number | null;
   afterBed: boolean;
+}
+
+export interface MeetingSave {
+  id?: string;
+  title: string;
+  date: string;
+  startMin: number;
+  endMin: number;
+  kind: "online" | "in-person";
+  link: string | null;
+  place: string | null;
+  notes: string;
+  attendees: string[];
+  repeat: RepeatRule | null;
 }
 
 export interface TaskView {
@@ -159,6 +189,7 @@ export interface TodayData {
   heading: string | null;
   blocks: Array<{ slot: number; name: string; startMin: number; endMin: number; used: number; capacity: number; tasks: TaskView[] }>;
   routine: Array<{ id: string; title: string; startMin: number; endMin: number | null; past: boolean }>;
+  meetings: MeetingRow[];
   unscheduled: TaskView[];
   /** With no template: open tasks that are due soon. */
   dueSoon: TaskView[];
@@ -191,12 +222,27 @@ export interface Api {
   taskUpdate(id: string, patch: TaskPatch): Promise<TaskDetail>;
   stepAdd(taskId: string, text: string): Promise<TaskDetail>;
   stepToggle(taskId: string, stepId: string, done: boolean): Promise<TaskDetail>;
+  /** Puts the steps in a new order, so the first one is the one to do first. */
+  stepsReorder(taskId: string, order: string[]): Promise<TaskDetail>;
+  stepUpdate(taskId: string, stepId: string, text: string): Promise<TaskDetail>;
+  stepDelete(taskId: string, stepId: string): Promise<TaskDetail>;
   subtaskAdd(parentId: string, title: string): Promise<TaskDetail>;
   subtaskToggle(parentId: string, id: string, done: boolean): Promise<TaskDetail>;
   taskPlace(id: string, date: string | null, slot: number | null): Promise<TaskDetail>;
   /** Makes a task come back on a schedule, or stops it. It must be scheduled first. */
   taskRepeatSet(id: string, rule: RepeatRule | null): Promise<TaskDetail>;
   taskDelete(id: string, subtasks: "delete" | "detach"): Promise<void>;
+
+  // ---- meetings
+  meetingGet(id: string, day: string): Promise<MeetingDetail>;
+  /** Writes down what was said at the meeting on that day. */
+  meetingMinutesSet(id: string, day: string, text: string): Promise<void>;
+  /** Meetings from today on, or the ones before, newest first. Optionally narrowed by a search. */
+  meetingsList(view: "upcoming" | "past", query: string): Promise<MeetingListItem[]>;
+  /** Makes a meeting, or changes one when `id` is given. A repeating meeting changes on every day. */
+  meetingSave(input: MeetingSave): Promise<MeetingDetail>;
+  /** Removes a meeting, or only the given day of a repeating one. */
+  meetingDelete(id: string, onlyDate: string | null): Promise<void>;
 
   // ---- week
   weekGet(offset: number): Promise<WeekData>;
@@ -233,6 +279,11 @@ export interface Api {
   dataExport(): Promise<string | null>;
   /** Asks for a file, takes a backup, then replaces everything with it. Null when cancelled. */
   dataImport(): Promise<{ rows: number } | null>;
+  updateGet(): Promise<UpdateState>;
+  /** Looks for a newer version now. */
+  updateCheck(): Promise<UpdateState>;
+  /** Restarts into a downloaded update. */
+  updateInstall(): Promise<void>;
   cliInfo(): Promise<CliInfo>;
   cliAddToPath(): Promise<CliInfo>;
   /** Shows or hides the always-on-top mini window. Returns whether it is now showing. */

@@ -37,6 +37,11 @@ export function toView(state: TimerState, store: Store, core: typeof Core): Time
     totalMs: run.item.endMin === null ? 0 : (run.item.endMin - run.item.startMin) * MINUTE,
   }));
 
+  const running = state.meetingRuns[0];
+  const meeting = running
+    ? { id: running.meeting.id, title: running.meeting.title, startMin: running.meeting.startMin, endMin: running.meeting.endMin, endsAt: running.endsAt, remainingMs: running.remainingMs, totalMs: (running.meeting.endMin - running.meeting.startMin) * MINUTE, link: running.meeting.link }
+    : null;
+
   let context: string | null = null;
   if (state.task?.projectId) {
     const project = store.listProjects().find((p) => p.id === state.task?.projectId);
@@ -50,7 +55,7 @@ export function toView(state: TimerState, store: Store, core: typeof Core): Time
 
   return {
     now: state.now,
-    kind: !block && routine.length > 0 && state.kind !== "no-template" ? "routine" : state.kind,
+    kind: state.kind === "meeting" ? "meeting" : !block && routine.length > 0 && state.kind !== "no-template" ? "routine" : state.kind,
     paused: state.paused,
     blockName: block?.name ?? null,
     blockStartMin: block ? block.startMin : null,
@@ -70,6 +75,8 @@ export function toView(state: TimerState, store: Store, core: typeof Core): Time
     startsInMs: state.startsInMs,
     routine,
     routinePaused: state.routinePaused,
+    meeting,
+    nextMeeting: state.nextMeeting ? { title: state.nextMeeting.title, startMin: state.nextMeeting.startMin } : null,
     idle: state.idle,
     dayOff: state.dayOff,
     nextLabel: state.nextBlock?.name ?? null,

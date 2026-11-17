@@ -130,3 +130,38 @@ export const rolloverLog = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.date, t.slot] })],
 );
+
+export const meeting = sqliteTable("meeting", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  date: text("date").notNull(),
+  startMin: integer("start_min").notNull(),
+  endMin: integer("end_min").notNull(),
+  kind: text("kind").$type<"online" | "in-person">().notNull(),
+  link: text("link"),
+  place: text("place"),
+  notes: text("notes").notNull(),
+  attendees: text("attendees", { mode: "json" }).$type<string[]>().notNull(),
+  repeat: text("repeat_rule", { mode: "json" }).$type<RepeatRule | null>(),
+  createdAt: integer("created_at").notNull(),
+});
+
+export const meetingSkip = sqliteTable(
+  "meeting_skip",
+  {
+    meetingId: text("meeting_id").notNull(),
+    date: text("date").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.meetingId, t.date] })],
+);
+
+export const meetingMinutes = sqliteTable(
+  "meeting_minutes",
+  {
+    meetingId: text("meeting_id").notNull(),
+    date: text("date").notNull(),
+    text: text("text").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.meetingId, t.date] })],
+);

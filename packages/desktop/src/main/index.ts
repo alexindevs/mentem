@@ -9,6 +9,8 @@ import { controlPath, startControl } from "./control";
 import { launcherDir, onPath, syncLauncher } from "./launcher";
 import type { Host } from "./data";
 import { createPresence } from "./presence";
+import { registerWindowsIdentity } from "./identity";
+import { createUpdates, type Updater } from "./updates";
 
 // The internal id never changes with the display name, so the data can never be orphaned.
 const dataDir = process.env.MENTEM_USER_DATA ?? join(app.getPath("appData"), "mentem");
@@ -193,7 +195,9 @@ function scheduleScreenshot(win: BrowserWindow): void {
   });
 }
 
+app.setName("Mentem");
 app.whenReady().then(async () => {
+  registerWindowsIdentity("Mentem");
   if (!app.isPackaged && process.env.MENTEM_ICONS) {
     await renderIcons(process.env.MENTEM_ICONS);
     return app.quit();
@@ -251,7 +255,19 @@ app.whenReady().then(async () => {
     const dir = launcherDir({ dataDir });
     return { name: openStoreRef.getSettings().cliName, dir, onPath: onPath(dir), canAddToPath: process.platform === "win32" };
   };
+  // The updater only exists in an installed build; a development run has nothing to update.
+  const updater: Updater | null = app.isPackaged ? ((await import("electron-updater")).autoUpdater as unknown as Updater) : null;
+  const updates = createUpdates({
+    updater,
+    version: app.getVersion(),
+    beforeInstall: () => mentem.createSnapshot(openStoreRef.db, BACKUPS, "pre-update", Date.now(), mentem.LATEST_VERSION),
+    ready: (version) => presence?.notify({ title: "Update ready", body: `Version ${version} installs when you quit.` }),
+  });
+  updates.start();
   const host: Host = {
+    updateState: updates.state,
+    updateCheck: updates.check,
+    updateInstall: updates.install,
     dataDir,
     backups: BACKUPS,
     dbPath: DB_PATH,

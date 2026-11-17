@@ -31,6 +31,10 @@ function rowsOf(view: TimerView, now: number, at: number) {
     const isBreak = view.kind === "break";
     rows.push({ key: "block", label: isBreak ? "Break" : "Now", title: isBreak ? (view.breakKind === "long" ? "Long break" : "Short break") : (view.emptyBlock ? "Nothing assigned" : (view.task?.title ?? view.blockName ?? "")), ms: left, value: share(left, view.totalMs) });
   }
+  if (view.meeting) {
+    const ms = Math.max(0, view.meeting.endsAt - now);
+    rows.push({ key: `m-${view.meeting.id}`, label: "Meeting", title: view.meeting.title, ms, value: share(ms, view.meeting.totalMs) });
+  }
   for (const r of view.routine) {
     const ms = r.endsAt === null ? r.remainingMs : Math.max(0, r.endsAt - now);
     rows.push({ key: `r-${r.title}`, label: "Routine", title: r.title, ms, value: share(ms, r.totalMs) });

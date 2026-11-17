@@ -30,3 +30,26 @@
 .drawer .field .input, .drawer .field .dropdown { width: 100%; }
 .drawer__section > .button { justify-self: start; }
 .drawer__check--done .task-row__check { border-color: var(--accent); background: var(--accent); }
+
+/* Meetings */
+.meeting-times { display: flex; align-items: center; gap: 8px; }
+.drawer__actions { display: flex; gap: 12px; padding-top: 8px; }
+.people { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.person { display: inline-flex; align-items: center; gap: 4px; height: 32px; padding: 0 6px 0 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); }
+.person button { display: grid; place-items: center; width: 22px; height: 22px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); font-size: 16px; line-height: 1; transition: background-color var(--dur-base) var(--ease-out), transform 90ms var(--ease-out); }
+.person button:hover { background: var(--border); color: var(--text); }
+.person button:active { transform: scale(0.9); }
+.drawer__minutes { min-height: 180px; resize: vertical; line-height: 1.5; }
+
+/* Reordering steps */
+.step-row { position: relative; border-radius: var(--radius-md); transition: background-color var(--dur-base) var(--ease-out); }
+.step-row--over { background: var(--accent-subtle); }
+.step-row__handle { display: grid; place-items: center; width: 18px; height: 28px; margin-left: -22px; padding: 0; border: 0; background: transparent; color: var(--muted); cursor: grab; opacity: 0; transition: opacity var(--dur-base) var(--ease-out); }
+.step-row:hover .step-row__handle, .step-row__handle:focus-visible { opacity: 1; }
+.step-row__handle:active { cursor: grabbing; }
+.step-row__text { flex: 1; min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: text; }
+.step-row__input { flex: 1; height: 36px; }
+.step-row__delete { display: grid; place-items: center; width: 24px; height: 24px; margin-left: auto; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--muted); font-size: 18px; line-height: 1; opacity: 0; transition: opacity var(--dur-base) var(--ease-out), background-color var(--dur-base) var(--ease-out), transform 90ms var(--ease-out); }
+.step-row:hover .step-row__delete, .step-row__delete:focus-visible { opacity: 1; }
+.step-row__delete:hover { background: var(--surface); color: var(--danger); }
+.step-row__delete:active { transform: scale(0.9); }

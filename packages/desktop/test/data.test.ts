@@ -47,6 +47,9 @@ function setup() {
     cli: () => ({ name: "mentem", dir: "/bin", onPath: false, canAddToPath: false }),
     addCliToPath: () => ({ name: "mentem", dir: "/bin", onPath: true, canAddToPath: false }),
     toggleMini: () => true,
+    updateState: () => ({ status: "unavailable", version: "0.1.0", available: null, percent: null, checkedAt: null }),
+    updateCheck: async () => ({ status: "unavailable", version: "0.1.0", available: null, percent: null, checkedAt: null }),
+    updateInstall: () => undefined,
   };
   return { dir, dbPath, clock, store, host, files, picks, api: createDataApi(store, core, host), relaunched: () => relaunched };
 }

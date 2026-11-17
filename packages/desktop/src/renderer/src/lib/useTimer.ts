@@ -47,6 +47,8 @@ export function useNow(active: boolean, offset: number): number {
 
 /** Whether anything on the Now card is counting down. */
 export function isTicking(view: TimerView | null): boolean {
-  if (!view || view.paused) return false;
+  if (!view) return false;
+  if (view.meeting) return true;
+  if (view.paused) return false;
   return view.endsAt !== null || view.startsInMs !== null || view.routine.some((r) => r.endsAt !== null) || (view.emptyBlock && view.blockEndsAt !== null);
 }

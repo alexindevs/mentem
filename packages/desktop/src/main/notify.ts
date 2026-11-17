@@ -20,6 +20,10 @@ export function describeTransition(prev: TimerView | null, next: TimerView): Mes
 
   if (next.dayComplete && !prev.dayComplete) return { title: "Day complete", body: "Everything you planned is done." };
 
+  if (next.meeting && prev.meeting?.id !== next.meeting.id) {
+    return { title: next.meeting.title, body: `Until ${new Date(next.meeting.endsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.` };
+  }
+
   if (next.kind === "break" && prev.kind !== "break") {
     const long = next.breakKind === "long";
     return { title: long ? "Long break" : "Break time", body: `${minutes(next.totalMs)} min.${next.nextTask ? ` Next: ${next.nextTask}` : ""}` };
@@ -53,6 +57,7 @@ export function trayTooltip(appName: string, view: TimerView | null, now: number
     const what = view.kind === "break" ? "Break" : (view.task?.title ?? view.blockName ?? "Working");
     return `${appName} · ${what} · ${clockText(left)}${view.paused ? " (paused)" : ""}`;
   }
+  if (view.meeting) return `${appName} · ${view.meeting.title} · ${clockText(Math.max(0, view.meeting.endsAt - now))}`;
   const r = view.routine[0];
   if (r) return `${appName} · ${r.title}`;
   if (view.kind === "between" && view.nextBlock) return `${appName} · Next: ${view.nextBlock.name}`;

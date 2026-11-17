@@ -196,3 +196,25 @@
 .tpl__columns { grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; }
 .block-row--compact .block-row__name { width: 112px; }
 .block-row--compact .time-field { padding: 0 6px; font-size: 12.5px; }
+
+/* Meetings page */
+.meetings { display: grid; gap: 28px; align-content: start; }
+.meetings__search { width: 220px; height: 44px; }
+.meetings__hint { margin: -8px 0 16px; }
+.meetings__day { display: grid; gap: 10px; }
+.meetings__day h2 { margin: 0; }
+.meetings__list { display: grid; gap: 8px; }
+.meeting-row { display: flex; align-items: center; gap: 20px; width: 100%; box-sizing: border-box; padding: 14px 20px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg); color: var(--text); font: inherit; text-align: left; cursor: pointer; transition: background-color var(--dur-base) var(--ease-out), transform 90ms var(--ease-out); }
+.meeting-row:hover { background: var(--surface); }
+.meeting-row:active { transform: scale(0.995); }
+.meeting-row__time { width: 170px; flex: none; font-variant-numeric: tabular-nums; }
+.meeting-row__main { display: grid; flex: 1; gap: 4px; min-width: 0; }
+.meeting-row__main > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meeting-row__meta { display: flex; align-items: center; gap: 6px; }
+
+/* Shortcuts list in Settings */
+.shortcuts { display: grid; gap: 6px; margin: 4px 0 0; }
+.shortcuts > div { display: flex; align-items: center; gap: 14px; }
+.shortcuts dt { width: 64px; flex: none; }
+.shortcuts dd { margin: 0; color: var(--muted); }
+.shortcuts kbd { display: inline-grid; place-items: center; min-width: 28px; height: 26px; box-sizing: border-box; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font: inherit; font-size: 13px; font-weight: 600; }

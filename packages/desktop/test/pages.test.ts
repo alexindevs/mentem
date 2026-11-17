@@ -277,3 +277,80 @@ describe("the weekly popups", () => {
     expect((await api.promptsGet()).planning).toBeNull();
   });
 });
+
+describe("meetings", () => {
+  const input = { title: "Standup", date: "2026-11-17", startMin: 600, endMin: 630, kind: "online" as const, link: "https://meet.example.com/x", place: null, notes: "", attendees: ["Sam"], repeat: null };
+
+  it("saves, shows on the week, changes and removes", async () => {
+    const { api } = setup();
+    const made = await api.meetingSave(input);
+    expect(made).toMatchObject({ title: "Standup", attendees: ["Sam"], repeat: null });
+    const week = await api.weekGet(0);
+    expect(week.days.find((d) => d.date === "2026-11-17")?.meetings).toMatchObject([{ id: made.id, title: "Standup", hasLink: true, past: false }]);
+    const changed = await api.meetingSave({ ...input, id: made.id, title: "Daily" });
+    expect(changed.title).toBe("Daily");
+    await api.meetingDelete(made.id, null);
+    await expect(api.meetingGet(made.id, "2026-11-17")).rejects.toThrow("No such meeting");
+  });
+
+  it("repeats, and can remove one day", async () => {
+    const { api } = setup();
+    const made = await api.meetingSave({ ...input, repeat: { interval: 1, unit: "day", anchor: "2026-11-17" } });
+    expect(made.repeat?.label).toBe("Every day");
+    await api.meetingDelete(made.id, "2026-11-18");
+    const week = await api.weekGet(0);
+    expect(week.days.map((d) => d.meetings.length)).toEqual([0, 1, 0, 1, 1, 1, 1]);
+  });
+
+  it("refuses a link that is not https and a meeting that ends before it starts", async () => {
+    const { api } = setup();
+    await expect(api.meetingSave({ ...input, link: "javascript:alert(1)" })).rejects.toThrow("https");
+    await expect(api.meetingSave({ ...input, startMin: 700, endMin: 600 })).rejects.toThrow("end after");
+  });
+
+  it("lists upcoming and past meetings, with search and a note of which need minutes", async () => {
+    const { api } = setup();
+    const done = await api.meetingSave({ ...input, title: "Planning", date: "2026-11-17", startMin: 540, endMin: 570, kind: "in-person" as const, link: null, place: "Room 2", attendees: ["Ola", "Sam"] });
+    await api.meetingSave({ ...input, title: "Retro", date: "2026-11-19", startMin: 840, endMin: 900 });
+    await api.meetingSave({ ...input, title: "Old", date: "2026-11-10" });
+    const past = await api.meetingsList("past", "");
+    expect(past.map((m) => m.title)).toEqual(["Planning", "Old"]);
+    expect(past[0]).toMatchObject({ kind: "in-person", place: "Room 2", people: 2, needsMinutes: true, hasMinutes: false });
+    await api.meetingMinutesSet(done.id, "2026-11-17", "Agreed the launch date");
+    expect((await api.meetingsList("past", "")).find((m) => m.title === "Planning")).toMatchObject({ hasMinutes: true, needsMinutes: false });
+    expect((await api.meetingGet(done.id, "2026-11-17")).minutes).toBe("Agreed the launch date");
+    expect((await api.meetingsList("upcoming", "")).map((m) => m.title)).toEqual(["Retro"]);
+    expect((await api.meetingsList("past", "ola")).map((m) => m.title)).toEqual(["Planning"]);
+    expect(await api.meetingsList("upcoming", "zzz")).toEqual([]);
+  });
+
+  it("marks a finished meeting as past", async () => {
+    const { api } = setup();
+    await api.meetingSave({ ...input, date: "2026-11-17", startMin: 540, endMin: 570 });
+    const today = (await api.weekGet(0)).days.find((d) => d.isToday)!;
+    expect(today.meetings[0]?.past).toBe(true);
+  });
+});
+
+describe("steps", () => {
+  it("can be put in any order, and the drawer shows that order", async () => {
+    const { api, store } = setup();
+    const t = store.createTask({ title: "Write", steps: ["outline", "draft", "send"] });
+    const [a, b, c] = (await api.taskGet(t.id)).steps.map((s) => s.id) as [string, string, string];
+    const moved = await api.stepsReorder(t.id, [c, a, b]);
+    expect(moved.steps.map((s) => s.text)).toEqual(["send", "outline", "draft"]);
+    await expect(api.stepsReorder(t.id, [a, b])).rejects.toThrow();
+    await expect(api.stepsReorder(t.id, ["not valid!"])).rejects.toThrow();
+  });
+});
+
+describe("editing steps in the drawer", () => {
+  it("changes the text and deletes a step", async () => {
+    const { api, store } = setup();
+    const t = store.createTask({ title: "Write", steps: ["outline", "draft"] });
+    const [a, b] = (await api.taskGet(t.id)).steps.map((s) => s.id) as [string, string];
+    expect((await api.stepUpdate(t.id, b, "write the draft")).steps.map((s) => s.text)).toEqual(["outline", "write the draft"]);
+    expect((await api.stepDelete(t.id, a)).steps.map((s) => s.text)).toEqual(["write the draft"]);
+    await expect(api.stepUpdate(t.id, b, " ")).rejects.toThrow();
+  });
+});

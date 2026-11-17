@@ -89,6 +89,39 @@ export interface RoutineItem {
   repeat: RepeatRule | null;
 }
 
+/** A one-off or repeating appointment. While it runs the timer steps aside. */
+export interface Meeting {
+  id: string;
+  title: string;
+  /** The first day, or the only day. For an occurrence it is the day it happens on. */
+  date: LocalDate;
+  startMin: number;
+  endMin: number;
+  /** Online meetings have a link; in-person ones have a place. */
+  kind: MeetingKind;
+  link: string | null;
+  place: string | null;
+  notes: string;
+  attendees: string[];
+  repeat: RepeatRule | null;
+  createdAt: number;
+}
+
+export type MeetingKind = "online" | "in-person";
+
+export interface MeetingInput {
+  title: string;
+  date: LocalDate;
+  startMin: number;
+  endMin: number;
+  kind?: MeetingKind;
+  link?: string | null;
+  place?: string | null;
+  notes?: string;
+  attendees?: string[];
+  repeat?: RepeatRule | null;
+}
+
 export interface Template {
   id: string;
   name: string;

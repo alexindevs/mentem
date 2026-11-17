@@ -75,7 +75,7 @@ export function createPresence(o: Options) {
     const message = describeTransition(last, view);
     last = view;
     if (message) {
-      if (s.notificationsEnabled && Notification.isSupported()) new Notification({ title: message.title, body: message.body, silent: true }).show();
+      if (s.notificationsEnabled && Notification.isSupported()) new Notification({ title: message.title, body: message.body, silent: true, icon: nativeImage.createFromPath(join(app.getAppPath(), "assets", "icon.png")) }).show();
       if (s.soundEnabled) shell.beep();
     }
     tray?.setToolTip(trayTooltip(s.appName, view, view.now));
@@ -87,8 +87,14 @@ export function createPresence(o: Options) {
 
   nativeTheme.on("updated", () => tray?.setImage(icon()));
 
+  /** Shows a notification of its own, if notifications are on. */
+  function notify(message: { title: string; body: string }): void {
+    if (o.settings().notificationsEnabled && Notification.isSupported()) new Notification({ ...message, silent: true, icon: nativeImage.createFromPath(join(app.getAppPath(), "assets", "icon.png")) }).show();
+  }
+
   return {
     applySettings,
+    notify,
     onView,
     toggleMini,
     dispose() {

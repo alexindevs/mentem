@@ -33,6 +33,88 @@ function CheckRow({ text, done, depth = 0, onToggle }: { text: string; done: boo
   );
 }
 
+const STEP_DRAG = "application/x-mentem-step";
+
+/** A step with a handle: drag it, or focus the handle and press the up or down arrow, to change the order. */
+function StepRow({ text, done, first, last, over, onToggle, onEdit, onDelete, onMove, onDragStart, onDragOver, onDrop, onDragEnd }: { text: string; done: boolean; first: boolean; last: boolean; over: boolean; onToggle(done: boolean): void; onEdit(text: string): void; onDelete(): void; onMove(by: -1 | 1): void; onDragStart(): void; onDragOver(): void; onDrop(): void; onDragEnd(): void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(text);
+  const finish = (save: boolean) => {
+    setEditing(false);
+    if (save && draft.trim() && draft.trim() !== text) onEdit(draft.trim());
+    else setDraft(text);
+  };
+  return (
+    <div
+      className={`drawer__check step-row ${done ? "drawer__check--done" : ""} ${over ? "step-row--over" : ""}`}
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData(STEP_DRAG, "step");
+        e.dataTransfer.effectAllowed = "move";
+        onDragStart();
+      }}
+      onDragOver={(e) => {
+        if (!e.dataTransfer.types.includes(STEP_DRAG)) return;
+        e.preventDefault();
+        onDragOver();
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDrop();
+      }}
+      onDragEnd={onDragEnd}
+    >
+      <button
+        className="step-row__handle"
+        aria-label={`Move ${text}. Use the up and down arrows.`}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowUp" && !first) (e.preventDefault(), onMove(-1));
+          if (e.key === "ArrowDown" && !last) (e.preventDefault(), onMove(1));
+        }}
+      >
+        <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor" aria-hidden="true">
+          <circle cx="3" cy="3" r="1.3" />
+          <circle cx="7" cy="3" r="1.3" />
+          <circle cx="3" cy="8" r="1.3" />
+          <circle cx="7" cy="8" r="1.3" />
+          <circle cx="3" cy="13" r="1.3" />
+          <circle cx="7" cy="13" r="1.3" />
+        </svg>
+      </button>
+      <button className="task-row__check" role="checkbox" aria-checked={done} aria-label={text} onClick={() => onToggle(!done)}>
+        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+          <path d="M2.5 6.2 5 8.6 9.5 3.6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: done ? 1 : 0 }} />
+        </svg>
+      </button>
+      {editing ? (
+        <input
+          className="input step-row__input"
+          aria-label="Step"
+          autoFocus
+          maxLength={200}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => finish(true)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") finish(true);
+            if (e.key === "Escape") {
+              e.stopPropagation();
+              finish(false);
+            }
+          }}
+        />
+      ) : (
+        <button className="step-row__text" onClick={() => (setDraft(text), setEditing(true))} title="Edit">
+          {text}
+        </button>
+      )}
+      <button className="step-row__delete" aria-label={`Delete ${text}`} onClick={onDelete}>
+        ×
+      </button>
+    </div>
+  );
+}
+
 function AddLine({ label, onAdd }: { label: string; onAdd(text: string): void }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
@@ -62,6 +144,8 @@ export function TaskDrawer({ taskId, onClose, onChange, onWorkOn }: TaskDrawerPr
   const [repeating, setRepeating] = useState(false);
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
+  const [dragStep, setDragStep] = useState<string | null>(null);
+  const [overStep, setOverStep] = useState<string | null>(null);
 
   useEffect(() => {
     if (!taskId) return;
@@ -169,9 +253,41 @@ export function TaskDrawer({ taskId, onClose, onChange, onWorkOn }: TaskDrawerPr
 
               <section className="drawer__section">
                 <span className="t-caption muted">Steps</span>
-                {task.steps.map((s) => (
-                  <CheckRow key={s.id} text={s.text} done={s.done} onToggle={(done) => apply(window.mentem.stepToggle(task.id, s.id, done))} />
-                ))}
+                {task.steps.map((s, i) => {
+                  const order = task.steps.map((x) => x.id);
+                  const moveTo = (from: number, to: number) => {
+                    if (from === to || from < 0 || to < 0) return;
+                    const next = [...order];
+                    next.splice(to, 0, next.splice(from, 1)[0]!);
+                    apply(window.mentem.stepsReorder(task.id, next));
+                  };
+                  return (
+                    <StepRow
+                      key={s.id}
+                      text={s.text}
+                      done={s.done}
+                      first={i === 0}
+                      last={i === task.steps.length - 1}
+                      over={overStep === s.id && dragStep !== s.id}
+                      onToggle={(done) => apply(window.mentem.stepToggle(task.id, s.id, done))}
+                      onEdit={(text) => apply(window.mentem.stepUpdate(task.id, s.id, text))}
+                      onDelete={() => apply(window.mentem.stepDelete(task.id, s.id))}
+                      onMove={(by) => moveTo(i, i + by)}
+                      onDragStart={() => setDragStep(s.id)}
+                      onDragOver={() => setOverStep(s.id)}
+                      onDrop={() => {
+                        const from = dragStep ? order.indexOf(dragStep) : -1;
+                        setDragStep(null);
+                        setOverStep(null);
+                        moveTo(from, i);
+                      }}
+                      onDragEnd={() => {
+                        setDragStep(null);
+                        setOverStep(null);
+                      }}
+                    />
+                  );
+                })}
                 <AddLine label="Add a step" onAdd={(text) => apply(window.mentem.stepAdd(task.id, text))} />
               </section>
 

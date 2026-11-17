@@ -2,9 +2,9 @@ import { type Clock } from "./clock";
 import { type LocalDate, dateOf, instantOf, minutesOfDay } from "./dates";
 import { buildSegments, segmentAt, type Segment } from "./schedule";
 import type { Store } from "./store";
-import type { DayBlock, RoutineItem, Slot, Task, TaskStep } from "./types";
+import type { DayBlock, Meeting, RoutineItem, Slot, Task, TaskStep } from "./types";
 
-export type TimerKind = "work" | "break" | "between" | "rest" | "no-template";
+export type TimerKind = "work" | "break" | "between" | "rest" | "no-template" | "meeting";
 
 export interface TimerState {
   now: number;
@@ -36,6 +36,10 @@ export interface TimerState {
   dayOff: boolean;
   /** Everything planned for today is done. */
   dayComplete: boolean;
+  /** Meetings running right now. The pomodoro waits for them and picks up where it stopped. */
+  meetingRuns: Array<{ meeting: Meeting; endsAt: number; remainingMs: number }>;
+  /** The next meeting today that has not started. */
+  nextMeeting: Meeting | null;
   /** The next real clock time at which the state changes by itself. Sleep until then. */
   nextEventAt: number | null;
 }
@@ -68,6 +72,54 @@ export class TimerEngine {
   state(): TimerState {
     const now = this.clock.now();
     const date = dateOf(now);
+    const meetings = this.store.meetingsOn(date);
+    const base = this.dayState(now, meetings);
+    const runs = meetings
+      .filter((m) => instantOf(date, m.startMin) <= now && now < instantOf(date, m.endMin))
+      .map((meeting) => ({ meeting, endsAt: instantOf(date, meeting.endMin), remainingMs: instantOf(date, meeting.endMin) - now }));
+    const nextMeeting = meetings.find((m) => instantOf(date, m.startMin) > now) ?? null;
+    const edges = meetings.flatMap((m) => [instantOf(date, m.startMin), instantOf(date, m.endMin)]);
+    return {
+      ...base,
+      kind: runs.length ? "meeting" : base.kind,
+      meetingRuns: runs,
+      nextMeeting,
+      nextEventAt: this.earliest(now, [base.nextEventAt, ...edges]),
+    };
+  }
+
+  /** Real-time spans in which a meeting runs, merged so overlapping meetings count once. */
+  private meetingSpans(date: LocalDate, meetings: Meeting[]): Array<[number, number]> {
+    const spans = meetings.map((m): [number, number] => [instantOf(date, m.startMin), instantOf(date, m.endMin)]).sort((a, b) => a[0] - b[0]);
+    const merged: Array<[number, number]> = [];
+    for (const span of spans) {
+      const last = merged[merged.length - 1];
+      if (last && span[0] <= last[1]) last[1] = Math.max(last[1], span[1]);
+      else merged.push([span[0], span[1]]);
+    }
+    return merged;
+  }
+
+  /** How long meetings held the block's clock between its start and `until`. */
+  private meetingTime(spans: Array<[number, number]>, from: number, until: number): number {
+    let total = 0;
+    for (const [s, e] of spans) total += Math.max(0, Math.min(e, until) - Math.max(s, from));
+    return total;
+  }
+
+  /** The real time at which the block's own clock reaches `target`, pushed back by every meeting before it. */
+  private realTimeOf(spans: Array<[number, number]>, blockStart: number, target: number): number {
+    let t = target + this.shiftMs;
+    for (const [s, e] of spans) {
+      if (e <= blockStart) continue;
+      const from = Math.max(s, blockStart);
+      if (from < t) t += e - from;
+    }
+    return t;
+  }
+
+  private dayState(now: number, meetings: Meeting[]): TimerState {
+    const date = dateOf(now);
     const settings = this.store.getSettings();
     const cfg = {
       pomodoroMinutes: settings.pomodoroMinutes,
@@ -83,7 +135,7 @@ export class TimerEngine {
       now, date, kind: "between", paused: false, block: null, segment: null, remainingMs: 0, segmentEndsAt: null,
       task: null, step: null, nextTask: null, emptyBlock: false, nextBlock: null, startsInMs: null, routine,
       routineRuns: runs, routinePaused: this.routinePausedAt !== null, idle: false, dayOff: this.store.isDayOff(date),
-      dayComplete: this.dayComplete(date), nextEventAt: null,
+      dayComplete: this.dayComplete(date), meetingRuns: [], nextMeeting: null, nextEventAt: null,
     };
 
     const realBlock = blocks.find((b) => instantOf(date, b.startMin) <= now && now < instantOf(date, b.endMin));
@@ -100,7 +152,9 @@ export class TimerEngine {
     if (realBlock) {
       const startI = instantOf(date, realBlock.startMin);
       const endI = instantOf(date, realBlock.endMin);
-      let eff = (this.pausedAt ?? now) - this.shiftMs;
+      const spans = this.meetingSpans(date, meetings);
+      const inMeeting = spans.some(([s, e]) => s <= now && now < e);
+      let eff = (this.pausedAt ?? now) - this.shiftMs - this.meetingTime(spans, startI, this.pausedAt ?? now);
       eff = Math.min(Math.max(eff, startI), endI - 1);
       const segs = buildSegments(realBlock.startMin, realBlock.endMin, cfg);
       const minute = Math.floor((eff - instantOf(date, 0)) / 60_000);
@@ -110,9 +164,12 @@ export class TimerEngine {
       const task = this.override ? tasks.find((t) => t.id === this.override) ?? tasks[0] ?? null : tasks[0] ?? null;
       const idx = task ? tasks.findIndex((t) => t.id === task.id) : -1;
       const segKey = `${key}:${segs.indexOf(segment)}`;
-      this.observeSegment(segKey, segment, task, now, segEndI + this.shiftMs);
+      const realEnd = this.realTimeOf(spans, startI, segEndI);
+      // While a meeting runs the pomodoro is not counted as time worked.
+      if (inMeeting) this.finishSegment(now);
+      else this.observeSegment(segKey, segment, task, now, realEnd);
       const paused = this.pausedAt !== null;
-      const segmentEndsAt = paused ? null : segEndI + this.shiftMs;
+      const segmentEndsAt = paused || inMeeting ? null : realEnd;
       return {
         ...base,
         kind: segment.kind,
@@ -179,7 +236,9 @@ export class TimerEngine {
     });
     if (segs[segs.length - 1] === segs.find((x) => x.startMin === s.segment!.startMin)) return;
     const target = instantOf(s.date, s.segment.endMin);
-    this.shiftMs = (this.pausedAt ?? this.clock.now()) - target;
+    const spans = this.meetingSpans(s.date, this.store.meetingsOn(s.date));
+    const at = this.pausedAt ?? this.clock.now();
+    this.shiftMs = at - this.meetingTime(spans, instantOf(s.date, s.block.startMin), at) - target;
     this.finishSegment(this.clock.now(), false);
   }
 

@@ -26,6 +26,8 @@ const base: TimerView = {
   startsInMs: null,
   routine: [],
   routinePaused: false,
+  meeting: null,
+  nextMeeting: null,
   idle: false,
   dayOff: false,
   nextLabel: null,
@@ -124,5 +126,16 @@ describe("the app icons", () => {
     const light = readFileSync(join(__dirname, "..", "assets", "tray.png"));
     const dark = readFileSync(join(__dirname, "..", "assets", "tray-dark.png"));
     expect(dark.equals(light)).toBe(false);
+  });
+});
+
+describe("the Windows icon file", () => {
+  it("wraps the PNG so notifications can show the logo", async () => {
+    const { pngToIco } = await import("../src/main/identity");
+    const png = readFileSync(join(__dirname, "..", "assets", "icon.png"));
+    const ico = pngToIco(png, 256);
+    expect([...ico.subarray(0, 6)]).toEqual([0, 0, 1, 0, 1, 0]);
+    expect(ico.readUInt32LE(14)).toBe(png.length);
+    expect(ico.subarray(22).equals(png)).toBe(true);
   });
 });

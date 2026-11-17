@@ -16,7 +16,7 @@ function greeting(name: string, at: Date): string {
 
 const dateLabel = (date: Date) => new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long" }).format(date);
 
-export function Today({ tick, hideDone, onOpenTask, onChange }: { tick: number; hideDone: boolean; onOpenTask(id: string): void; onChange(): void }) {
+export function Today({ tick, quickAdd, hideDone, onOpenMeeting, onOpenTask, onChange }: { tick: number; quickAdd: number; hideDone: boolean; onOpenMeeting(target: { id: string | null; date: string }): void; onOpenTask(id: string): void; onChange(): void }) {
   const [data, setData] = useState<TodayData | null>(null);
   const snapshot = useTimer();
   const view = snapshot?.view ?? null;
@@ -38,6 +38,13 @@ export function Today({ tick, hideDone, onOpenTask, onChange }: { tick: number; 
         <header className="today__header">
           <h1 className="t-h-l">{greeting(data.userName, new Date(now))}</h1>
           <div className="today__header-side">
+            <button className="today__mini" onClick={() => onOpenMeeting({ id: null, date: data.date })} aria-label="Add a meeting" title="Add a meeting">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3.5" y="5" width="17" height="15" rx="3" />
+                <path d="M8 3v4M16 3v4M3.5 10h17M12 13v4M10 15h4" />
+              </svg>
+              <span>Add meeting</span>
+            </button>
             <button className="today__mini" onClick={() => void window.mentem.miniToggle()} aria-label="Show or hide the mini window" title="Mini window">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <rect x="3" y="5" width="18" height="14" rx="3" />
@@ -58,7 +65,7 @@ export function Today({ tick, hideDone, onOpenTask, onChange }: { tick: number; 
           onStartNow={() => void window.mentem.blockStartNow()}
           onIdle={() => void window.mentem.blockIdle()}
           onDayOff={(off) => run(window.mentem.dayOffSet(off))}
-          onCreateTemplate={() => run(window.mentem.templateCreate())}
+          onMinutes={(id) => onOpenMeeting({ id, date: data.date })} onCreateTemplate={() => run(window.mentem.templateCreate())}
           onPull={() => {
             const first = data.unscheduled[0];
             if (first && currentBlock) run(window.mentem.taskAssign(first.id, currentBlock.slot));
@@ -66,7 +73,7 @@ export function Today({ tick, hideDone, onOpenTask, onChange }: { tick: number; 
         />
         <div className="today__columns">
           {data.hasTemplate ? (
-            <DayList hideDone={hideDone} data={data} timer={view} onToggle={toggle} onOpen={onOpenTask} onDrop={(id, slot) => run(window.mentem.taskAssign(id, slot))} />
+            <DayList hideDone={hideDone} onOpenMeeting={(id) => onOpenMeeting({ id, date: data.date })} data={data} timer={view} onToggle={toggle} onOpen={onOpenTask} onDrop={(id, slot) => run(window.mentem.taskAssign(id, slot))} />
           ) : (
             <div className="day-list">
               <h2 className="t-h-m">Pick a template</h2>
@@ -92,7 +99,7 @@ export function Today({ tick, hideDone, onOpenTask, onChange }: { tick: number; 
               )}
             </div>
           )}
-          <Unscheduled tasks={data.unscheduled} onOpen={onOpenTask} onCreate={(title) => run(window.mentem.taskCreate(title))} onToggle={toggle} onDrop={(id) => run(window.mentem.taskAssign(id, null))} />
+          <Unscheduled focusSignal={quickAdd} tasks={data.unscheduled} onOpen={onOpenTask} onCreate={(title) => run(window.mentem.taskCreate(title))} onToggle={toggle} onDrop={(id) => run(window.mentem.taskAssign(id, null))} />
         </div>
     </>
   );

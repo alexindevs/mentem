@@ -233,3 +233,42 @@ describe("data", () => {
     expect(await run("dance")).toEqual({ code: 1, out: 'I don\'t know "dance". Run help to see the commands.' });
   });
 });
+
+describe("meetings", () => {
+  it("adds, lists, shows on today, repeats and removes", async () => {
+    const { run, store } = setup();
+    const added = await run('meeting add "Standup" --from 9:10 --to 9:40 --with Sam --with Ola --link https://meet.example.com/x');
+    expect(added.code).toBe(0);
+    const id = /Added (\w+):/.exec(added.out)![1]!;
+    expect(store.getMeeting(id)).toMatchObject({ title: "Standup", startMin: 550, endMin: 580, attendees: ["Sam", "Ola"], date: "2026-11-16" });
+    expect((await run("meeting list")).out).toContain("9:10-9:40  Standup");
+    expect((await run("today")).out).toContain("9:10-9:40  Meeting: Standup");
+    await run(`meeting add "Retro" --from 14:00 --to 15:00 --date tomorrow --repeat weekly`);
+    expect((await run("meeting list --date 2026-11-24")).out).toContain("Retro");
+    const retro = store.listMeetings().find((m) => m.title === "Retro")!;
+    expect((await run(`meeting rm ${retro.id} --date 2026-11-24`)).out).toBe("Removed Retro on 2026-11-24.");
+    expect((await run("meeting list --date 2026-11-24")).out).toBe("No meetings on 2026-11-24.");
+    expect((await run(`meeting rm ${id.slice(0, 3)}`)).out).toBe("Removed Standup.");
+    expect(store.getMeeting(id)).toBeUndefined();
+  });
+
+  it("takes a place for in-person meetings, and keeps minutes for each day", async () => {
+    const { run, store } = setup();
+    const added = await run('meeting add "Offsite" --from 10:00 --to 11:00 --place "Room 2" --repeat daily');
+    const id = /Added (\w+):/.exec(added.out)![1]!;
+    expect(store.getMeeting(id)).toMatchObject({ kind: "in-person", place: "Room 2", link: null });
+    expect((await run("meeting list")).out).toContain("Offsite (Room 2)");
+    expect((await run(`meeting minutes ${id}`)).out).toBe("No minutes for Offsite on 2026-11-16.");
+    expect((await run(`meeting minutes ${id} Agreed the plan`)).out).toBe("Saved the minutes for Offsite on 2026-11-16.");
+    expect((await run(`meeting minutes ${id}`)).out).toBe("Agreed the plan");
+    expect((await run(`meeting minutes ${id} --date tomorrow`)).out).toContain("No minutes");
+  });
+
+  it("explains what is missing or wrong", async () => {
+    const { run } = setup();
+    expect((await run("meeting add")).code).toBe(1);
+    expect((await run('meeting add "X" --from 9:00')).out).toContain("--from and --to");
+    expect((await run('meeting add "X" --from 10:00 --to 9:00')).out).toContain("end after");
+    expect((await run('meeting add "X" --from 9:00 --to 10:00 --link javascript:1')).out).toContain("https://");
+  });
+});

@@ -27,6 +27,9 @@ Continuous pomodoros run through each work block. Short and long breaks, pause, 
 **A day that matches your real one**
 Templates hold your wake and bed times, routine items (lunch, a walk, dinner) and as many work blocks as fit in the day. Use one for weekdays, another for weekends, and change a single day without touching the template.
 
+**Meetings that the timer respects**
+A Meetings page lists what is coming and what has passed. Each meeting is online (with a link) or in person (with a place), has an agenda and people, can repeat, and has room for minutes, written separately for every day it happens. While one runs the pomodoro steps aside, then picks up with the time that was left. The block still ends when it was meant to.
+
 **Tasks with room to breathe**
 Steps, due dates, pomodoro estimates, projects and deliverables. Drag a task into a block or leave it in Unscheduled. Repeats can be daily, every third day, certain weekdays, monthly or yearly.
 
@@ -68,6 +71,12 @@ mentem report
 
 Run `mentem help` for the full list.
 
+## Install
+
+Download the installer from the [latest release](https://github.com/alexindevs/mentem/releases/latest): `Mentem-Setup-<version>.exe` for Windows or `mentem_<version>_amd64.deb` for Debian and Ubuntu (`sudo apt install ./mentem_<version>_amd64.deb`).
+
+The app looks for new versions by itself, downloads them quietly and installs them when you quit. Your data lives in its own folder (`%APPDATA%\mentem` on Windows), so updating or uninstalling never touches it, and a backup is taken before each update.
+
 ## Run it
 
 Needs Node 22 and pnpm.
@@ -92,3 +101,14 @@ pnpm lint
 | `packages/cli` | The `mentem` command, talking to the same database and to the running app over a local socket. |
 
 The timer is event-driven: one timer is armed for the next change, so an idle app uses almost nothing.
+
+## Releasing
+
+Bump `version` in `packages/desktop/package.json`, commit, then push a matching tag:
+
+```bash
+git tag v0.1.1
+git push origin v0.1.1
+```
+
+GitHub Actions builds the Windows installer and the `.deb`, attaches them to a release and publishes the update feed. Every push to `main` also builds both and keeps them as downloadable artifacts. To build locally, run `pnpm --filter @mentem/desktop package:win` (the result is in `packages/desktop/release`).

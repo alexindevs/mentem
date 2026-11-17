@@ -62,6 +62,64 @@ export interface WeekDay {
     endMin: number;
     tasks: Array<{ id: string; title: string; done: boolean; overdue: boolean; current: boolean }>;
   }>;
+  meetings: MeetingRow[];
+}
+
+/** A meeting as a row in a day's list. */
+export interface MeetingRow {
+  id: string;
+  title: string;
+  startMin: number;
+  endMin: number;
+  hasLink: boolean;
+  /** It has already finished today. */
+  past: boolean;
+}
+
+/** Everything the meeting drawer edits. */
+export interface MeetingDetail {
+  id: string;
+  title: string;
+  /** The day it happens, or the first day of a repeating meeting. */
+  date: string;
+  startMin: number;
+  endMin: number;
+  kind: "online" | "in-person";
+  link: string | null;
+  place: string | null;
+  notes: string;
+  attendees: string[];
+  repeat: { rule: RepeatRule; label: string } | null;
+  /** The day these minutes belong to: the one it was opened from. */
+  day: string;
+  minutes: string;
+}
+
+/** One meeting on one day, as a row on the Meetings page. */
+export interface MeetingListItem {
+  id: string;
+  date: string;
+  title: string;
+  startMin: number;
+  endMin: number;
+  kind: "online" | "in-person";
+  place: string | null;
+  people: number;
+  hasMinutes: boolean;
+  repeatLabel: string | null;
+  /** Past meetings with nothing written down yet. */
+  needsMinutes: boolean;
+}
+
+/** Whether a newer version is on its way. */
+export interface UpdateState {
+  status: "unavailable" | "idle" | "checking" | "downloading" | "ready" | "current" | "error";
+  /** The version that is running. */
+  version: string;
+  /** The newer version, once one is found. */
+  available: string | null;
+  percent: number | null;
+  checkedAt: number | null;
 }
 
 export interface WeekData {

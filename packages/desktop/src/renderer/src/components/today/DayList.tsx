@@ -5,6 +5,7 @@ import { blockTime, formatTime } from "../../lib/time";
 import { DRAG_TYPE, TaskRow } from "./TaskRow";
 
 interface DayListProps {
+  onOpenMeeting(id: string): void;
   hideDone: boolean;
   data: TodayData;
   timer: TimerView | null;
@@ -15,6 +16,7 @@ interface DayListProps {
 
 type Entry =
   | { kind: "routine"; at: number; item: TodayData["routine"][number] }
+  | { kind: "meeting"; at: number; meeting: TodayData["meetings"][number] }
   | { kind: "block"; at: number; block: TodayData["blocks"][number] };
 
 function Done() {
@@ -74,9 +76,10 @@ function Block({ block, current, timer, hideDone, onToggle, onOpen, onDrop }: { 
 }
 
 /** Routine items and work blocks in the order the day runs. */
-export function DayList({ data, timer, hideDone, onToggle, onOpen, onDrop }: DayListProps) {
+export function DayList({ data, timer, hideDone, onOpenMeeting, onToggle, onOpen, onDrop }: DayListProps) {
   const entries: Entry[] = [
     ...data.routine.map((item): Entry => ({ kind: "routine", at: item.startMin, item })),
+    ...data.meetings.map((meeting): Entry => ({ kind: "meeting", at: meeting.startMin, meeting })),
     ...data.blocks.map((block): Entry => ({ kind: "block", at: block.startMin, block })),
   ]
     // Once the day has started the wake-up item is behind you; it still shows when looking ahead to tomorrow.
@@ -95,6 +98,16 @@ export function DayList({ data, timer, hideDone, onToggle, onOpen, onDrop }: Day
               <span className="t-body-m routine__title">{entry.item.title}</span>
               {entry.item.past && <Done />}
             </div>
+          );
+        }
+        if (entry.kind === "meeting") {
+          const active = timer?.meeting?.id === entry.meeting.id;
+          return (
+            <button key={`m${entry.meeting.id}`} className={`routine routine--meeting ${active ? "routine--active" : ""} ${entry.meeting.past ? "routine--past" : ""}`} onClick={() => onOpenMeeting(entry.meeting.id)}>
+              <span className="t-caption routine__time">{formatTime(entry.meeting.startMin)}</span>
+              <span className="t-body-m routine__title">{entry.meeting.title}</span>
+              {entry.meeting.past && <Done />}
+            </button>
           );
         }
         const current = timer?.blockName === entry.block.name && (timer.kind === "work" || timer.kind === "break");

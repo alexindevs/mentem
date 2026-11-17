@@ -226,3 +226,43 @@ describe("projects", () => {
     store.deleteTemplate("none"); // deleting something absent is harmless
   });
 });
+
+describe("ordering steps", () => {
+  it("lets any step come first, and the timer follows the new order", () => {
+    const { store } = makeStore();
+    const t = store.createTask({ title: "Write", steps: ["outline", "draft", "send"] });
+    const [a, b, c] = store.listSteps(t.id).map((s) => s.id) as [string, string, string];
+    expect(store.currentStep(t.id)?.step.text).toBe("outline");
+    store.reorderSteps(t.id, [c, a, b]);
+    expect(store.listSteps(t.id).map((s) => s.text)).toEqual(["send", "outline", "draft"]);
+    expect(store.currentStep(t.id)).toMatchObject({ index: 1, total: 3, step: { text: "send" } });
+    store.addStep(t.id, "review");
+    expect(store.listSteps(t.id).map((s) => s.text).at(-1)).toBe("review");
+  });
+
+  it("refuses an order that is missing a step, repeats one or names another task's step", () => {
+    const { store } = makeStore();
+    const t = store.createTask({ title: "A", steps: ["one", "two"] });
+    const other = store.createTask({ title: "B", steps: ["x"] });
+    const [a, b] = store.listSteps(t.id).map((s) => s.id) as [string, string];
+    expect(() => store.reorderSteps(t.id, [a])).toThrow();
+    expect(() => store.reorderSteps(t.id, [a, a])).toThrow();
+    expect(() => store.reorderSteps(t.id, [a, store.listSteps(other.id)[0]!.id])).toThrow();
+    expect(store.listSteps(t.id).map((s) => s.id)).toEqual([a, b]);
+  });
+});
+
+describe("editing and removing steps", () => {
+  it("rewords a step, removes one, and keeps the rest in order", () => {
+    const { store } = makeStore();
+    const t = store.createTask({ title: "Write", steps: ["outline", "draft", "send"] });
+    const [a, b, c] = store.listSteps(t.id).map((s) => s.id) as [string, string, string];
+    store.updateStep(b, "  write the draft  ");
+    store.removeStep(a);
+    expect(store.listSteps(t.id).map((s) => s.text)).toEqual(["write the draft", "send"]);
+    expect(store.currentStep(t.id)).toMatchObject({ index: 1, total: 2, step: { id: b } });
+    store.addStep(t.id, "review");
+    expect(store.listSteps(t.id).map((s) => s.id).slice(0, 2)).toEqual([b, c]);
+    expect(() => store.updateStep(b, "   ")).toThrow("text");
+  });
+});

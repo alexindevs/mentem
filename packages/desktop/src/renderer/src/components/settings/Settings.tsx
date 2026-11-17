@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import type { Settings as AppSettings, ThemeId } from "@mentem/core";
-import type { CliInfo, SnapshotView } from "@shared/api";
+import type { CliInfo, SnapshotView, UpdateState } from "@shared/api";
 import { Button, Pill, StepperRow, SwitchRow } from "../ui";
 import { DAY_SHORT, PRESETS, THEME_NAMES } from "../onboarding/draft";
+import { SHORTCUT_LIST } from "../../lib/shortcuts";
 
 type Tab = "General" | "Appearance" | "Focus" | "Alerts" | "Data";
 const TABS: Tab[] = ["General", "Appearance", "Focus", "Alerts", "Data"];
@@ -15,6 +16,42 @@ interface SettingsProps {
 }
 
 const CLI_NAME = /^[A-Za-z0-9-]{1,30}$/;
+
+function Updates() {
+  const [state, setState] = useState<UpdateState | null>(null);
+  useEffect(() => void window.mentem.updateGet().then(setState), []);
+  // While something is happening, look again every couple of seconds.
+  useEffect(() => {
+    if (state?.status !== "checking" && state?.status !== "downloading") return;
+    const timer = setTimeout(() => void window.mentem.updateGet().then(setState), 1500);
+    return () => clearTimeout(timer);
+  }, [state]);
+  if (!state) return null;
+  const text =
+    state.status === "checking" ? "Checking…"
+    : state.status === "downloading" ? `Downloading ${state.available ?? "the update"}${state.percent ? ` · ${state.percent}%` : ""}`
+    : state.status === "ready" ? `Version ${state.available} is ready.`
+    : state.status === "error" ? "Couldn’t check for updates."
+    : state.status === "unavailable" ? "Updates come with the installed app."
+    : "Up to date.";
+  return (
+    <div className="field">
+      <span className="t-body-m-strong">Version {state.version}</span>
+      <div className="settings__note settings__note--row t-caption">
+        <span>{text}</span>
+        {state.status === "ready" ? (
+          <Button onClick={() => void window.mentem.updateInstall()}>Restart to update</Button>
+        ) : (
+          state.status !== "unavailable" && (
+            <Button variant="secondary" disabled={state.status === "checking" || state.status === "downloading"} onClick={() => void window.mentem.updateCheck().then(setState)}>
+              Check for updates
+            </Button>
+          )
+        )}
+      </div>
+    </div>
+  );
+}
 
 function General({ settings, save, onRunSetup }: { settings: AppSettings; save(patch: Patch): void; onRunSetup(): void }) {
   const [name, setName] = useState(settings.userName);
@@ -60,9 +97,23 @@ function General({ settings, save, onRunSetup }: { settings: AppSettings; save(p
           ))}
         </div>
       </div>
+      <div className="field">
+        <span className="t-body-m-strong">Shortcuts</span>
+        <dl className="shortcuts">
+          {SHORTCUT_LIST.map(([key, what]) => (
+            <div key={key}>
+              <dt>
+                <kbd>{key}</kbd>
+              </dt>
+              <dd className="t-body-m">{what}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
       <div className="group">
         <SwitchRow title="Hide done tasks" body="Finished tasks leave Today and Week." checked={settings.hideDoneTasks} onChange={(hideDoneTasks) => save({ hideDoneTasks })} />
       </div>
+      <Updates />
       <Button variant="secondary" onClick={onRunSetup} style={{ justifySelf: "start" }}>
         Run setup again
       </Button>

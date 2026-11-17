@@ -1,6 +1,6 @@
 import type * as Core from "@mentem/core";
 import type { Store } from "@mentem/core";
-import type { Api, CliInfo, SnapshotView } from "../shared/api";
+import type { Api, CliInfo, SnapshotView, UpdateState } from "../shared/api";
 
 /** What the data tools need from the operating system, so they can be tested without a window. */
 export interface Host {
@@ -17,9 +17,12 @@ export interface Host {
   cli(): CliInfo;
   addCliToPath(): CliInfo;
   toggleMini(): boolean;
+  updateState(): UpdateState;
+  updateCheck(): Promise<UpdateState>;
+  updateInstall(): void;
 }
 
-type DataApi = Pick<Api, "dataSnapshots" | "dataBackup" | "dataRestore" | "dataExport" | "dataImport" | "cliInfo" | "cliAddToPath" | "miniToggle">;
+type DataApi = Pick<Api, "dataSnapshots" | "dataBackup" | "dataRestore" | "dataExport" | "dataImport" | "cliInfo" | "cliAddToPath" | "miniToggle" | "updateGet" | "updateCheck" | "updateInstall">;
 
 export function createDataApi(store: Store, core: typeof Core, host: Host): DataApi {
   const snapshots = (): SnapshotView[] =>
@@ -67,6 +70,18 @@ export function createDataApi(store: Store, core: typeof Core, host: Host): Data
       core.createSnapshot(store.db, host.backups, "pre-restore", store.clock.now(), core.LATEST_VERSION);
       const result = core.importData(store.db, parsed);
       return { rows: result.rows };
+    },
+
+    async updateGet() {
+      return host.updateState();
+    },
+
+    async updateCheck() {
+      return host.updateCheck();
+    },
+
+    async updateInstall() {
+      host.updateInstall();
     },
 
     async cliInfo() {

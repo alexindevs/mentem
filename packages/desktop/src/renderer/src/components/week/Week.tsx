@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { WeekData, WeekDay } from "@shared/api";
-import { blockTime } from "../../lib/time";
+import { blockTime, formatTime } from "../../lib/time";
 import { Button } from "../ui";
 import { DRAG_TYPE } from "../today/TaskRow";
 import type { ToastMessage } from "../Toast";
@@ -8,6 +8,7 @@ import type { ToastMessage } from "../Toast";
 interface WeekProps {
   tick: number;
   hideDone: boolean;
+  onOpenMeeting(target: { id: string | null; date: string }): void;
   onOpenTask(id: string): void;
   onToast(message: ToastMessage): void;
   onChange(): void;
@@ -37,7 +38,7 @@ function DayMenu({ day, templates, onPick }: { day: WeekDay; templates: WeekData
   );
 }
 
-function DayColumn({ hideDone, day, templates, onOpenTask, onDrop, onPick }: { hideDone: boolean; day: WeekDay; templates: WeekData["templates"]; onOpenTask(id: string): void; onDrop(id: string, date: string, slot: number): void; onPick(id: string | null): void }) {
+function DayColumn({ hideDone, onOpenMeeting, day, templates, onOpenTask, onDrop, onPick }: { hideDone: boolean; onOpenMeeting(id: string): void; day: WeekDay; templates: WeekData["templates"]; onOpenTask(id: string): void; onDrop(id: string, date: string, slot: number): void; onPick(id: string | null): void }) {
   const [over, setOver] = useState<number | null>(null);
   return (
     <section className={`week-day ${day.isToday ? "week-day--today" : ""} ${day.past ? "week-day--past" : ""}`}>
@@ -49,6 +50,12 @@ function DayColumn({ hideDone, day, templates, onOpenTask, onDrop, onPick }: { h
         </div>
         <DayMenu day={day} templates={templates} onPick={onPick} />
       </header>
+      {day.meetings.map((m) => (
+        <button key={m.id} className={`week-meeting ${m.past ? "week-meeting--past" : ""}`} onClick={() => onOpenMeeting(m.id)}>
+          <span className="t-caption">{formatTime(m.startMin)}</span>
+          <span className="t-body-m-strong">{m.title}</span>
+        </button>
+      ))}
       {day.blocks.map((block) => (
         <div
           key={block.slot}
@@ -93,7 +100,7 @@ function DayColumn({ hideDone, day, templates, onOpenTask, onDrop, onPick }: { h
   );
 }
 
-export function Week({ tick, hideDone, onOpenTask, onToast, onChange }: WeekProps) {
+export function Week({ tick, hideDone, onOpenMeeting, onOpenTask, onToast, onChange }: WeekProps) {
   const [offset, setOffset] = useState(0);
   const [data, setData] = useState<WeekData | null>(null);
   const [overStrip, setOverStrip] = useState(false);
@@ -126,11 +133,14 @@ export function Week({ tick, hideDone, onOpenTask, onToast, onChange }: WeekProp
           <Button variant="secondary" onClick={() => setOffset(0)}>
             Today
           </Button>
+          <Button variant="secondary" onClick={() => onOpenMeeting({ id: null, date: data.days.find((d) => !d.past)?.date ?? data.days[0]!.date })}>
+            Add meeting
+          </Button>
         </div>
       </header>
       <div className="week-grid">
         {data.days.map((day) => (
-          <DayColumn hideDone={hideDone} key={day.date} day={day} templates={data.templates} onOpenTask={onOpenTask} onDrop={(id, date, slot) => place(id, date, slot)} onPick={(templateId) => pick(day.date, templateId)} />
+          <DayColumn hideDone={hideDone} onOpenMeeting={(id) => onOpenMeeting({ id, date: day.date })} key={day.date} day={day} templates={data.templates} onOpenTask={onOpenTask} onDrop={(id, date, slot) => place(id, date, slot)} onPick={(templateId) => pick(day.date, templateId)} />
         ))}
       </div>
       <div

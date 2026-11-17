@@ -20,6 +20,7 @@ interface NowCardProps {
   onIdle(): void;
   onDayOff(off: boolean): void;
   onCreateTemplate(): void;
+  onMinutes(meetingId: string): void;
 }
 
 const clamp = (n: number) => Math.min(1, Math.max(0, n));
@@ -70,13 +71,34 @@ function Copy({ id, label, title, detail, children }: { id: string; label: strin
 
 const range = (view: TimerView) => (view.blockStartMin !== null && view.blockEndMin !== null ? `${blockTime(view.blockStartMin)} – ${blockTime(view.blockEndMin)}` : "");
 
-export function NowCard({ view, at, now, data, onAct, onPull, onExtend, onStartNow, onIdle, onDayOff, onCreateTemplate }: NowCardProps) {
+export function NowCard({ view, at, now, data, onAct, onPull, onExtend, onStartNow, onIdle, onDayOff, onCreateTemplate, onMinutes }: NowCardProps) {
   const segmentMs = view.paused || view.endsAt === null ? view.remainingMs : Math.max(0, view.endsAt - now);
   const pause = (
     <Button variant="secondary" onClick={() => onAct(view.paused ? "resume" : "pause")}>
       {view.paused ? "Resume" : "Pause"}
     </Button>
   );
+
+  // A meeting: the pomodoro waits and picks up where it stopped.
+  if (view.kind === "meeting" && view.meeting) {
+    const m = view.meeting;
+    const left = Math.max(0, m.endsAt - now);
+    return (
+      <section className="now" aria-live="polite">
+        <div className="now__main">
+          <Copy id={`meeting:${m.id}`} label={`Meeting · ${formatRange(m.startMin, m.endMin)}`} title={m.title}>
+            <div className="now__buttons">
+              {m.link && /^https:\/\//i.test(m.link) && <Button onClick={() => window.open(m.link!, "_blank", "noopener")}>Open link</Button>}
+              <Button variant="secondary" onClick={() => onMinutes(m.id)}>
+                Take minutes
+              </Button>
+            </div>
+          </Copy>
+        </div>
+        <Side ms={left} value={share(left, m.totalMs)} bottom={view.task ? `Then: ${view.task.title}` : null} />
+      </section>
+    );
+  }
 
   // Everything planned is done.
   if (view.dayComplete && (view.kind === "between" || view.kind === "rest" || view.kind === "routine")) {

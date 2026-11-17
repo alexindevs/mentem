@@ -2,7 +2,7 @@ import { z } from "zod";
 import type * as Core from "@mentem/core";
 import type { Slot, Store, TimerEngine, UndoToken } from "@mentem/core";
 import { MAX_BLOCKS } from "../shared/pages";
-import type { Api, ChangeSummary, PlanningData, Prompts, ReportDetail, ReportSummary, SessionsData, ChipTone, ProjectCard, ProjectDetail, ProjectGroup, TaskDetail, TemplateDetail, TemplatesData, WeekData, WeekDay } from "../shared/api";
+import type { Api, ChangeSummary, MeetingDetail, MeetingListItem, MeetingRow, PlanningData, Prompts, ReportDetail, ReportSummary, SessionsData, ChipTone, ProjectCard, ProjectDetail, ProjectGroup, TaskDetail, TemplateDetail, TemplatesData, WeekData, WeekDay } from "../shared/api";
 
 interface Deps {
   store: Store;
@@ -42,6 +42,19 @@ const patchSchema = z
   .strict();
 
 const minutes = z.number().int().min(0).max(24 * 60);
+const meetingSchema = z.object({
+  id: z.string().regex(ID).optional(),
+  title: z.string().trim().min(1).max(120),
+  date: z.string().regex(DATE),
+  startMin: minutes,
+  endMin: minutes,
+  kind: z.enum(["online", "in-person"]),
+  link: z.string().trim().max(500).nullable(),
+  place: z.string().trim().max(200).nullable(),
+  notes: z.string().max(5000),
+  attendees: z.array(z.string().trim().max(80)).max(30),
+  repeat: z.unknown().nullable(),
+});
 const templateSchema = z.object({
   id: z.string().regex(ID),
   name: z.string().trim().min(1).max(40),
@@ -63,7 +76,8 @@ const DEFAULT_BLOCKS = [
 /** The task drawer, the week, and the templates: everything beyond the Today page. */
 type PageApi = Pick<
   Api,
-  | "taskGet" | "taskUpdate" | "stepAdd" | "stepToggle" | "subtaskAdd" | "subtaskToggle" | "taskPlace" | "taskRepeatSet" | "taskDelete"
+  | "taskGet" | "taskUpdate" | "stepAdd" | "stepToggle" | "stepsReorder" | "stepUpdate" | "stepDelete" | "subtaskAdd" | "subtaskToggle" | "taskPlace" | "taskRepeatSet" | "taskDelete"
+  | "meetingGet" | "meetingSave" | "meetingDelete" | "meetingMinutesSet" | "meetingsList"
   | "weekGet" | "dayTemplateSet" | "dayTemplateUndo"
   | "templatesGet" | "templateNew" | "templateSave" | "templateDelete"
   | "projectsGet" | "projectGet" | "projectCreate" | "projectContextSet" | "deliverableAdd" | "projectTaskAdd"
@@ -78,6 +92,16 @@ export function createPageApi({ store, engine, core, refresh }: Deps): PageApi {
   };
   const short = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric" });
   let lastUndo: UndoToken | null = null;
+
+  const meetingDetail = (meetingId: string, day: string): MeetingDetail => {
+    const m = store.getMeeting(meetingId);
+    if (!m) throw new Error("No such meeting");
+    return { id: m.id, title: m.title, date: m.date, startMin: m.startMin, endMin: m.endMin, kind: m.kind, link: m.link, place: m.place, notes: m.notes, attendees: m.attendees, repeat: m.repeat ? { rule: m.repeat, label: core.describeRule(m.repeat) } : null, day, minutes: store.getMinutes(meetingId, day) };
+  };
+  const meetingRows = (d: string): MeetingRow[] => {
+    const nowMs = store.clock.now();
+    return store.meetingsOn(d).map((m) => ({ id: m.id, title: m.title, startMin: m.startMin, endMin: m.endMin, hasLink: m.link !== null, past: d < today() || (d === today() && core.instantOf(d, m.endMin) <= nowMs) }));
+  };
 
   // ------------------------------------------------------------------ task
   const detail = (taskId: string): TaskDetail => {
@@ -383,6 +407,25 @@ export function createPageApi({ store, engine, core, refresh }: Deps): PageApi {
       return detail(id(raw));
     },
 
+    async stepUpdate(raw, stepId, text) {
+      store.updateStep(id(stepId), String(text));
+      refresh();
+      return detail(id(raw));
+    },
+
+    async stepDelete(raw, stepId) {
+      store.removeStep(id(stepId));
+      refresh();
+      return detail(id(raw));
+    },
+
+    async stepsReorder(raw, order) {
+      const taskId = id(raw);
+      store.reorderSteps(taskId, z.array(z.string().regex(ID)).max(200).parse(order));
+      refresh();
+      return detail(taskId);
+    },
+
     async subtaskAdd(raw, title) {
       const parentId = id(raw);
       const clean = String(title).trim();
@@ -432,6 +475,48 @@ export function createPageApi({ store, engine, core, refresh }: Deps): PageApi {
       refresh();
     },
 
+    async meetingGet(raw, rawDay) {
+      return meetingDetail(id(raw), date(rawDay));
+    },
+
+    async meetingMinutesSet(raw, rawDay, text) {
+      store.setMinutes(id(raw), date(rawDay), String(text));
+    },
+
+    async meetingsList(view, rawQuery) {
+      const query = String(rawQuery ?? "").trim().toLowerCase().slice(0, 80);
+      const nowMs = store.clock.now();
+      const day = today();
+      const upcoming = view === "upcoming";
+      const from = upcoming ? day : core.addDays(day, -120);
+      const to = upcoming ? core.addDays(day, 120) : day;
+      const ended = (m: { date: string; endMin: number }) => m.date < day || (m.date === day && core.instantOf(m.date, m.endMin) <= nowMs);
+      const withMinutes = store.minutesDays(from, to);
+      const rows = store
+        .meetingsBetween(from, to)
+        .filter((m) => (upcoming ? !ended(m) : ended(m)))
+        .filter((m) => !query || [m.title, m.place ?? "", ...m.attendees].some((s) => s.toLowerCase().includes(query)))
+        .map((m): MeetingListItem => {
+          const has = withMinutes.has(`${m.id}:${m.date}`);
+          return { id: m.id, date: m.date, title: m.title, startMin: m.startMin, endMin: m.endMin, kind: m.kind, place: m.place, people: m.attendees.length, hasMinutes: has, repeatLabel: m.repeat ? core.describeRule(m.repeat) : null, needsMinutes: ended(m) && !has };
+        });
+      return (upcoming ? rows : rows.reverse()).slice(0, 300);
+    },
+
+    async meetingSave(raw) {
+      const input = meetingSchema.parse(raw);
+      const fields = { title: input.title, date: input.date, startMin: input.startMin, endMin: input.endMin, kind: input.kind, link: input.link, place: input.place, notes: input.notes, attendees: input.attendees, repeat: input.repeat ? core.parseRule(input.repeat) : null };
+      if (input.id && !store.getMeeting(input.id)) throw new Error("No such meeting");
+      const saved = input.id ? store.updateMeeting(input.id, fields) : store.createMeeting(fields);
+      refresh();
+      return meetingDetail(saved.id, input.date);
+    },
+
+    async meetingDelete(raw, rawDate) {
+      store.deleteMeeting(id(raw), rawDate === null ? undefined : date(rawDate));
+      refresh();
+    },
+
     async weekGet(offset) {
       const settings = store.getSettings();
       const now = today();
@@ -451,6 +536,7 @@ export function createPageApi({ store, engine, core, refresh }: Deps): PageApi {
           template: tid ? (store.getTemplate(tid)?.name ?? null) : null,
           templateId: tid,
           summary: tid ? upSummary(store.getTemplate(tid)) : "No template",
+          meetings: meetingRows(d),
           blocks: store.blocksFor(d).map((b) => ({
             slot: b.slot,
             name: b.name,

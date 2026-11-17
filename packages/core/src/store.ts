@@ -10,6 +10,8 @@ import {
   type DeliverableType,
   type EventKind,
   type EventReason,
+  type Meeting,
+  type MeetingInput,
   type Project,
   type RepeatRule,
   type RoutineItem,
@@ -22,7 +24,7 @@ import {
   type Template,
   DEFAULT_SETTINGS,
 } from "./types";
-import { occursOn } from "./repeat";
+import { occurrences, occursOn, parseRule as parseRepeat } from "./repeat";
 
 type Row = Record<string, any>;
 
@@ -270,6 +272,96 @@ export class Store {
       .map((r) => (ends.has(r.id) ? { ...r, endMin: ends.get(r.id)! } : r));
   }
 
+  // ---------------------------------------------------------------- meetings
+
+  /** Checks and cleans what was typed, so a bad value never reaches the database. */
+  private cleanMeeting(input: MeetingInput): Omit<Meeting, "id" | "createdAt"> {
+    const title = input.title.trim();
+    if (!title || title.length > 120) throw new Error("A meeting needs a title.");
+    if (!Number.isInteger(input.startMin) || !Number.isInteger(input.endMin) || input.startMin < 0 || input.endMin > 24 * 60 || input.endMin <= input.startMin) throw new Error("A meeting must end after it starts, on the same day.");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date)) throw new Error("A meeting needs a date.");
+    const kind = input.kind === "in-person" ? "in-person" : "online";
+    const place = kind === "in-person" ? input.place?.trim().slice(0, 200) || null : null;
+    const link = kind === "online" ? input.link?.trim() || null : null;
+    if (link && (link.length > 500 || !/^https:\/\/\S+$/i.test(link))) throw new Error("The link must start with https://.");
+    const notes = (input.notes ?? "").slice(0, 5000);
+    const attendees = [...new Set((input.attendees ?? []).map((a) => a.trim()).filter(Boolean))].slice(0, 30).map((a) => a.slice(0, 80));
+    const repeat = input.repeat ? parseRepeat({ ...input.repeat, anchor: input.date }) : null;
+    return { title, date: input.date, startMin: input.startMin, endMin: input.endMin, kind, link, place, notes, attendees, repeat };
+  }
+
+  createMeeting(input: MeetingInput): Meeting {
+    const m = this.cleanMeeting(input);
+    const id = this.freshId("meeting");
+    this.run("INSERT INTO meeting(id, title, date, start_min, end_min, kind, link, place, notes, attendees, repeat_rule, created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", id, m.title, m.date, m.startMin, m.endMin, m.kind, m.link, m.place, m.notes, JSON.stringify(m.attendees), m.repeat ? JSON.stringify(m.repeat) : null, this.clock.now());
+    return this.getMeeting(id)!;
+  }
+
+  getMeeting(id: string): Meeting | undefined {
+    const row = this.get<Row>("SELECT * FROM meeting WHERE id = ?", id);
+    return row ? mapMeeting(row) : undefined;
+  }
+
+  /** Changes a meeting, and every day of it when it repeats. */
+  updateMeeting(id: string, patch: Partial<MeetingInput>): Meeting {
+    const cur = this.getMeeting(id);
+    if (!cur) throw new Error("No such meeting.");
+    const next = this.cleanMeeting({ ...cur, ...patch, repeat: patch.repeat === undefined ? cur.repeat : patch.repeat });
+    this.run("UPDATE meeting SET title=?, date=?, start_min=?, end_min=?, kind=?, link=?, place=?, notes=?, attendees=?, repeat_rule=? WHERE id=?", next.title, next.date, next.startMin, next.endMin, next.kind, next.link, next.place, next.notes, JSON.stringify(next.attendees), next.repeat ? JSON.stringify(next.repeat) : null, id);
+    return this.getMeeting(id)!;
+  }
+
+  /** Removes a meeting, or just one day of a repeating one when `onlyDate` is given. */
+  deleteMeeting(id: string, onlyDate?: LocalDate): void {
+    const cur = this.getMeeting(id);
+    if (!cur) return;
+    if (onlyDate && cur.repeat && onlyDate !== cur.date) this.run("INSERT OR IGNORE INTO meeting_skip(meeting_id, date) VALUES(?,?)", id, onlyDate);
+    else this.run("DELETE FROM meeting WHERE id = ?", id);
+  }
+
+  /** What was written down for the meeting on one of its days. */
+  getMinutes(id: string, date: LocalDate): string {
+    return this.get<Row>("SELECT text FROM meeting_minutes WHERE meeting_id = ? AND date = ?", id, date)?.text ?? "";
+  }
+
+  setMinutes(id: string, date: LocalDate, text: string): void {
+    if (!this.getMeeting(id)) throw new Error("No such meeting.");
+    const clean = text.slice(0, 20000);
+    if (clean.trim() === "") this.run("DELETE FROM meeting_minutes WHERE meeting_id = ? AND date = ?", id, date);
+    else this.run("INSERT INTO meeting_minutes(meeting_id, date, text, updated_at) VALUES(?,?,?,?) ON CONFLICT(meeting_id, date) DO UPDATE SET text = excluded.text, updated_at = excluded.updated_at", id, date, clean, this.clock.now());
+  }
+
+  /** The days in a range on which a meeting has minutes, as "id:date". */
+  minutesDays(from: LocalDate, to: LocalDate): Set<string> {
+    return new Set(this.all<Row>("SELECT meeting_id, date FROM meeting_minutes WHERE date >= ? AND date <= ?", from, to).map((r) => `${r.meeting_id}:${r.date}`));
+  }
+
+  /** Every occurrence from one day to another, repeats included, oldest first. */
+  meetingsBetween(from: LocalDate, to: LocalDate): Meeting[] {
+    const skips = new Set(this.all<Row>("SELECT meeting_id, date FROM meeting_skip WHERE date >= ? AND date <= ?", from, to).map((r) => `${r.meeting_id}:${r.date}`));
+    const out: Meeting[] = [];
+    for (const m of this.all<Row>("SELECT * FROM meeting WHERE date <= ?", to).map(mapMeeting)) {
+      const days = m.repeat ? occurrences(m.repeat, from, to) : m.date >= from ? [m.date] : [];
+      for (const d of days) if (!skips.has(`${m.id}:${d}`)) out.push({ ...m, date: d });
+    }
+    return out.sort((a, b) => a.date.localeCompare(b.date) || a.startMin - b.startMin);
+  }
+
+  /** Every meeting, once each (a repeating one is listed by its first day). */
+  listMeetings(): Meeting[] {
+    return this.all<Row>("SELECT * FROM meeting ORDER BY date, start_min").map(mapMeeting);
+  }
+
+  /** The meetings that happen on a date, repeats included, in the order they start. */
+  meetingsOn(date: LocalDate): Meeting[] {
+    const skipped = new Set(this.all<Row>("SELECT meeting_id FROM meeting_skip WHERE date = ?", date).map((r) => r.meeting_id as string));
+    return this.all<Row>("SELECT * FROM meeting WHERE date = ? OR (repeat_rule IS NOT NULL AND date < ?)", date, date)
+      .map(mapMeeting)
+      .filter((m) => !skipped.has(m.id) && (m.date === date || (m.repeat !== null && occursOn(m.repeat, date))))
+      .map((m) => ({ ...m, date }))
+      .sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+  }
+
   // ------------------------------------------------- adjustments to one day
 
   /** Makes a routine item run `minutes` longer on this date only. */
@@ -397,6 +489,24 @@ export class Store {
 
   listSteps(taskId: string): TaskStep[] {
     return this.all<Row>("SELECT * FROM task_step WHERE task_id = ? ORDER BY position", taskId).map(mapStep);
+  }
+
+  /** Changes the wording of a step. */
+  updateStep(stepId: string, text: string): void {
+    const clean = text.trim();
+    if (!clean || clean.length > 200) throw new Error("A step needs some text.");
+    this.run("UPDATE task_step SET text = ? WHERE id = ?", clean, stepId);
+  }
+
+  removeStep(stepId: string): void {
+    this.run("DELETE FROM task_step WHERE id = ?", stepId);
+  }
+
+  /** Puts a task's steps in the given order. The list must hold exactly the task's steps. */
+  reorderSteps(taskId: string, orderedIds: string[]): void {
+    const current = this.listSteps(taskId).map((s) => s.id);
+    if (orderedIds.length !== current.length || new Set(orderedIds).size !== current.length || !orderedIds.every((id) => current.includes(id))) throw new Error("Those are not this task's steps.");
+    this.transaction(() => orderedIds.forEach((id, position) => this.run("UPDATE task_step SET position = ? WHERE id = ?", position, id)));
   }
 
   setStepDone(stepId: string, done: boolean): void {
@@ -598,6 +708,9 @@ function mapBlock(r: Row): Block {
 }
 function mapRoutine(r: Row): RoutineItem {
   return { id: r.id, templateId: r.template_id, title: r.title, startMin: r.start_min, endMin: r.end_min, position: r.position, repeat: parseRule(r.repeat_rule) };
+}
+function mapMeeting(r: Row): Meeting {
+  return { id: r.id, title: r.title, date: r.date, startMin: r.start_min, endMin: r.end_min, kind: r.kind === "in-person" ? "in-person" : "online", link: r.link, place: r.place, notes: r.notes, attendees: JSON.parse(r.attendees) as string[], repeat: parseRule(r.repeat_rule), createdAt: r.created_at };
 }
 function mapTask(r: Row): Task {
   return { id: r.id, parentId: r.parent_id, projectId: r.project_id, deliverableId: r.deliverable_id, seriesId: r.series_id, title: r.title, notes: r.notes, estimatePomodoros: r.estimate_pomodoros, dueDate: r.due_date, status: r.status, createdAt: r.created_at, completedAt: r.completed_at };
