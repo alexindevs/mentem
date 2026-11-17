@@ -71,3 +71,22 @@ describe("keyboard shortcuts", () => {
     expect(shortcutFor(press("x"), false, false)).toBeNull();
   });
 });
+
+import { showsDayComplete } from "../src/renderer/src/lib/dayCard";
+
+describe("when the Now card says the day is complete", () => {
+  it("says it when everything is done and nothing is going on", () => {
+    expect(showsDayComplete({ dayComplete: true, kind: "between" })).toBe(true);
+    expect(showsDayComplete({ dayComplete: true, kind: "rest" })).toBe(true);
+  });
+
+  it("keeps showing a routine item that is running now, or a meeting", () => {
+    expect(showsDayComplete({ dayComplete: true, kind: "routine" })).toBe(false);
+    expect(showsDayComplete({ dayComplete: true, kind: "meeting" })).toBe(false);
+  });
+
+  it("does not say it while the day is not done", () => {
+    expect(showsDayComplete({ dayComplete: false, kind: "between" })).toBe(false);
+    expect(showsDayComplete({ dayComplete: false, kind: "rest" })).toBe(false);
+  });
+});

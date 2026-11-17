@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import type { ReactNode } from "react";
 import type { TimerAction, TimerTarget, TimerView, TodayData } from "@shared/api";
+import { showsDayComplete } from "../../lib/dayCard";
 import { blockTime, formatClock, formatFocus, formatRange, formatTime } from "../../lib/time";
 import { Mark } from "../Mark";
 import { Button, Pill } from "../ui";
@@ -102,7 +103,7 @@ export function NowCard({ view, at, now, data, onAct, onPull, onExtend, onExtend
   }
 
   // Everything planned is done.
-  if (view.dayComplete && (view.kind === "between" || view.kind === "rest" || view.kind === "routine")) {
+  if (showsDayComplete(view)) {
     return (
       <section className="now now--tint now--center" aria-live="polite">
         <Mark size={92} />
