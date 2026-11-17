@@ -29,6 +29,7 @@ const base: TimerView = {
   meeting: null,
   nextMeeting: null,
   idle: false,
+  extendRoomMin: 0,
   dayOff: false,
   nextLabel: null,
   dayComplete: false,

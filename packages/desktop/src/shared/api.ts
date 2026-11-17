@@ -154,6 +154,8 @@ export interface TimerView {
   nextMeeting: { title: string; startMin: number } | null;
   /** In an empty block you chose to leave empty. */
   idle: boolean;
+  /** How many minutes the running block could still be extended today. 0 when there is no room. */
+  extendRoomMin: number;
   dayOff: boolean;
   dayComplete: boolean;
   wakeMin: number | null;
@@ -210,6 +212,8 @@ export interface Api {
   routineExtend(minutes: number): Promise<TimerView>;
   /** Starts the next block now instead of at its planned time. */
   blockStartNow(): Promise<TimerView>;
+  /** Makes the running block last longer, today only. */
+  blockExtend(minutes: number): Promise<TimerView>;
   /** Leaves an empty block empty. */
   blockIdle(): Promise<TimerView>;
   /** Marks today as a day off, or takes that back. */

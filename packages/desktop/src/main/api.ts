@@ -218,6 +218,13 @@ export function createApi({ store, engine, core, info, refresh, host }: Deps): A
       return refresh();
     },
 
+    async blockExtend(raw) {
+      const minutes = Number(raw);
+      if (!Number.isInteger(minutes) || minutes < 5 || minutes > 120) throw new Error("Invalid length");
+      engine.extendBlock(minutes);
+      return refresh();
+    },
+
     async blockStartNow() {
       engine.startNow();
       return refresh();

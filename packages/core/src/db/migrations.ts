@@ -298,6 +298,19 @@ export const MIGRATIONS: Migration[] = [
       );
     `,
   },
+  {
+    version: 7,
+    name: "block_extension",
+    sql: `
+      -- A work block that runs later than planned on one date.
+      CREATE TABLE block_extension (
+        date TEXT NOT NULL,
+        slot INTEGER NOT NULL,
+        end_min INTEGER NOT NULL,
+        PRIMARY KEY (date, slot)
+      );
+    `,
+  },
 ];
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

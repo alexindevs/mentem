@@ -1,6 +1,6 @@
 import { createConnection } from "node:net";
 
-export type ControlCommand = "pause" | "resume" | "skip" | "done";
+export type ControlCommand = "pause" | "resume" | "skip" | "done" | "refresh";
 
 /** Sends one timer command to the running app and returns what it said. */
 export function sendControl(path: string, command: ControlCommand, timeoutMs = 2000): Promise<string> {

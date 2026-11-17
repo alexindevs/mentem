@@ -64,6 +64,7 @@ mentem task add "Write the report" --due fri --est 3
 mentem assign <id> --date today --block Morning
 mentem assign <id> --date today --block Morning --repeat daily --every 3
 mentem now                                          # what is running, and what is left
+mentem extend 30                                    # run the current block 30 minutes longer today
 mentem pause                                        # control the running app
 mentem week
 mentem report

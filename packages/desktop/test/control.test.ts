@@ -68,7 +68,19 @@ describe("timer control from the command line", () => {
     expect(refreshed).toBe(4);
   });
 
-  it("ignores anything that is not one of the four", async () => {
+  it("takes a refresh after the command line changed the data, and only refreshes", async () => {
+    const path = pathFor();
+    const { engine, calls } = fakeEngine();
+    let refreshed = 0;
+    servers.push(startControl(path, engine, () => (refreshed += 1)));
+    await listening(path);
+    expect((await ask(path, `${JSON.stringify({ command: "refresh" })}
+`)).ok).toBe(true);
+    expect(calls).toEqual([]);
+    expect(refreshed).toBe(1);
+  });
+
+  it("ignores anything that is not one of the commands", async () => {
     const path = pathFor();
     const { engine, calls } = fakeEngine();
     servers.push(startControl(path, engine, () => undefined));

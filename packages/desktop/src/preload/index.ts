@@ -17,6 +17,7 @@ const bridge: Bridge = {
   timerAct: call("timerAct"),
   routineExtend: call("routineExtend"),
   blockStartNow: call("blockStartNow"),
+  blockExtend: call("blockExtend"),
   blockIdle: call("blockIdle"),
   dayOffSet: call("dayOffSet"),
   templateCreate: call("templateCreate"),

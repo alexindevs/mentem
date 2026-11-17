@@ -62,6 +62,7 @@ export function Today({ tick, quickAdd, hideDone, onOpenMeeting, onOpenTask, onC
           data={data}
           onAct={act}
           onExtend={(minutes) => void window.mentem.routineExtend(minutes)}
+          onExtendBlock={(minutes) => void window.mentem.blockExtend(minutes)}
           onStartNow={() => void window.mentem.blockStartNow()}
           onIdle={() => void window.mentem.blockIdle()}
           onDayOff={(off) => run(window.mentem.dayOffSet(off))}

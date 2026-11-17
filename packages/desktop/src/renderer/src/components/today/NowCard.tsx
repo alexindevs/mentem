@@ -16,6 +16,7 @@ interface NowCardProps {
   onAct(action: TimerAction, target?: TimerTarget): void;
   onPull(): void;
   onExtend(minutes: number): void;
+  onExtendBlock(minutes: number): void;
   onStartNow(): void;
   onIdle(): void;
   onDayOff(off: boolean): void;
@@ -71,7 +72,7 @@ function Copy({ id, label, title, detail, children }: { id: string; label: strin
 
 const range = (view: TimerView) => (view.blockStartMin !== null && view.blockEndMin !== null ? `${blockTime(view.blockStartMin)} – ${blockTime(view.blockEndMin)}` : "");
 
-export function NowCard({ view, at, now, data, onAct, onPull, onExtend, onStartNow, onIdle, onDayOff, onCreateTemplate, onMinutes }: NowCardProps) {
+export function NowCard({ view, at, now, data, onAct, onPull, onExtend, onExtendBlock, onStartNow, onIdle, onDayOff, onCreateTemplate, onMinutes }: NowCardProps) {
   const segmentMs = view.paused || view.endsAt === null ? view.remainingMs : Math.max(0, view.endsAt - now);
   const pause = (
     <Button variant="secondary" onClick={() => onAct(view.paused ? "resume" : "pause")}>
@@ -296,6 +297,19 @@ export function NowCard({ view, at, now, data, onAct, onPull, onExtend, onStartN
               {isBreak ? "Skip break" : "Skip"}
             </Button>
           </div>
+          {view.extendRoomMin >= 5 && (
+            <div className="now__extend">
+              <span className="t-caption now__muted">Extend {view.blockName}</span>
+              <div className="pills">
+                {/* The usual amounts that fit, or whatever is left when less than that remains. */}
+                {([15, 30].filter((m) => m <= view.extendRoomMin).length ? [15, 30].filter((m) => m <= view.extendRoomMin) : [view.extendRoomMin]).map((m) => (
+                  <Pill key={m} onClick={() => onExtendBlock(m)}>
+                    +{m}
+                  </Pill>
+                ))}
+              </div>
+            </div>
+          )}
         </Copy>
       </div>
       <Side ms={segmentMs} value={share(segmentMs, view.totalMs)} top={isBreak ? null : view.task?.context} bottom={next} />

@@ -200,6 +200,24 @@ function meetingCmd(ctx: Context, p: Parsed): Result {
   }
 }
 
+/** Makes the running work block last longer today, and tells the app if it is open. */
+async function extendCmd(ctx: Context, p: Parsed): Promise<Result> {
+  const text = p.words[1];
+  const minutes = text === undefined ? 30 : Number(text);
+  if (!Number.isInteger(minutes) || minutes < 5 || minutes > 120) throw new Usage("extend takes a whole number of minutes from 5 to 120, such as extend 30.");
+  const s = ctx.engine.state();
+  if (!s.block) throw new Usage("No work block is running.");
+  let end: number;
+  try {
+    end = ctx.store.extendBlock(s.date, s.block.slot, minutes);
+  } catch (e) {
+    throw new Usage(e instanceof Error ? e.message : "Could not extend the block.");
+  }
+  // The change is already saved; this only lets an open app notice it straight away.
+  await ctx.control("refresh").catch(() => undefined);
+  return ok(`${s.block.name} now ends at ${hhmm(end)}.`);
+}
+
 function taskCmd(ctx: Context, p: Parsed): Result {
   const { store } = ctx;
   const [, sub, ...rest] = p.words;
@@ -477,6 +495,7 @@ project add|show                       deliverable add --project P "title"
 template list|add|edit|rm              schedule set --days mon-fri --template T | set-day DATE --template T
 config set week-end|pomodoro|app-name|cli-name
 backup | restore [NAME] | export FILE | import FILE
+extend [MINUTES]                       run the current work block longer today (default 30)
 pause | resume | skip | done           (the app must be running)`;
 
 /** Runs one command line. Never throws for a user mistake: that comes back as a message and code 1. */
@@ -495,6 +514,7 @@ export async function runCommand(argv: string[], ctx: Context): Promise<Result> 
       case "report": return reportCmd(ctx, p);
       case "task": return taskCmd(ctx, p);
       case "meeting": return meetingCmd(ctx, p);
+      case "extend": return await extendCmd(ctx, p);
       case "assign": return place(ctx, p, "assign");
       case "move": return place(ctx, p, "move");
       case "repeat": {

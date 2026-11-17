@@ -3,7 +3,7 @@ import { createServer, type Server } from "node:net";
 import { join } from "node:path";
 import type { TimerEngine } from "@mentem/core";
 
-const COMMANDS = new Set(["pause", "resume", "skip", "done"]);
+const COMMANDS = new Set(["pause", "resume", "skip", "done", "refresh"]);
 
 export function controlPath(dataDir: string, platform: NodeJS.Platform = process.platform): string {
   return platform === "win32" ? String.raw`\\.\pipe\mentem-control` : join(dataDir, "mentem.sock");
@@ -11,7 +11,8 @@ export function controlPath(dataDir: string, platform: NodeJS.Platform = process
 
 /**
  * Lets the command line control the running timer (FR-50). It listens on a local pipe or
- * socket only, takes four fixed commands, and ignores anything else.
+ * socket only, takes a few fixed commands, and ignores anything else. "refresh" has no effect
+ * of its own: it makes the app look at the data again after the command line changed it.
  */
 export function startControl(path: string, engine: TimerEngine, refresh: () => void): Server {
   if (process.platform !== "win32") rmSync(path, { force: true });
@@ -34,7 +35,7 @@ export function startControl(path: string, engine: TimerEngine, refresh: () => v
       if (command === "pause") engine.pause();
       else if (command === "resume") engine.resume();
       else if (command === "skip") engine.skip();
-      else engine.done();
+      else if (command === "done") engine.done();
       refresh();
       socket.end(`${JSON.stringify({ ok: true, message: `Done: ${command}.` })}\n`);
     });

@@ -254,11 +254,40 @@ export class Store {
     const id = this.templateIdFor(date);
     if (!id) return [];
     const early = new Map(this.all<Row>("SELECT slot, start_min FROM block_override WHERE date = ?", date).map((r) => [r.slot as number, r.start_min as number]));
+    const later = new Map(this.all<Row>("SELECT slot, end_min FROM block_extension WHERE date = ?", date).map((r) => [r.slot as number, r.end_min as number]));
     return this.all<Row>("SELECT * FROM template_block WHERE template_id = ? ORDER BY slot", id).map((r) => {
       const planned = r.start_hour * 60;
+      const plannedEnd = r.end_hour * 60;
       const started = early.get(r.slot);
-      return { ...mapBlock(r), date, startMin: started !== undefined && started < planned ? started : planned, endMin: r.end_hour * 60 };
+      const ended = later.get(r.slot);
+      return { ...mapBlock(r), date, startMin: started !== undefined && started < planned ? started : planned, endMin: ended !== undefined && ended > plannedEnd ? ended : plannedEnd };
     });
+  }
+
+  /** How many minutes a block could still be extended on a date: up to the next block, or bed time for the last one. */
+  blockRoom(date: LocalDate, slot: Slot): number {
+    const blocks = this.blocksFor(date);
+    const block = blocks.find((b) => b.slot === slot);
+    const templateId = this.templateIdFor(date);
+    if (!block || !templateId) return 0;
+    const next = blocks.filter((b) => b.startMin >= block.endMin).sort((a, b) => a.startMin - b.startMin)[0];
+    const limit = Math.min(24 * 60, next ? next.startMin : (this.getTemplate(templateId)?.bedMin ?? 24 * 60));
+    return Math.max(0, limit - block.endMin);
+  }
+
+  /**
+   * Makes a work block run longer on one date only, never into the next block or past bed time.
+   * Returns when the block now ends.
+   */
+  extendBlock(date: LocalDate, slot: Slot, minutes: number): number {
+    if (!Number.isInteger(minutes) || minutes < 5 || minutes > 120) throw new Error("Extend by 5 to 120 minutes.");
+    const block = this.blocksFor(date).find((b) => b.slot === slot);
+    if (!block) throw new Error("No such block.");
+    const room = this.blockRoom(date, slot);
+    if (room <= 0) throw new Error("There is no room to extend this block.");
+    const end = block.endMin + Math.min(minutes, room);
+    this.run("INSERT INTO block_extension(date, slot, end_min) VALUES(?,?,?) ON CONFLICT(date, slot) DO UPDATE SET end_min = excluded.end_min", date, slot, end);
+    return end;
   }
 
   /** Routine items that apply on a date, honoring each item's repeat rule (default: every time). */

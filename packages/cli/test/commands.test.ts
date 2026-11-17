@@ -234,6 +234,31 @@ describe("data", () => {
   });
 });
 
+describe("extending the work block", () => {
+  it("runs the block later today, tells the app, and works with the app closed", async () => {
+    const { run, store, sent } = setup();
+    expect((await run("extend")).out).toBe("Morning now ends at 12:30.");
+    expect(store.blocksFor("2026-11-16")[0]!.endMin).toBe(750);
+    expect((await run("extend 20")).out).toBe("Morning now ends at 12:50.");
+    expect(sent).toEqual(["refresh", "refresh"]);
+  });
+
+  it("stops at the next block, and explains when it cannot", async () => {
+    const { run, store } = setup();
+    expect((await run("extend 120")).out).toBe("Morning now ends at 13:00.");
+    expect(await run("extend")).toEqual({ code: 1, out: "There is no room to extend this block." });
+    expect((await run("extend 3")).out).toContain("5 to 120");
+    expect((await run("extend soon")).code).toBe(1);
+    expect(store.blocksFor("2026-11-16")[0]!.endMin).toBe(780);
+  });
+
+  it("says when no block is running", async () => {
+    const { run, clock } = setup();
+    clock.set(at(2026, 11, 16, 12, 30));
+    expect(await run("extend")).toEqual({ code: 1, out: "No work block is running." });
+  });
+});
+
 describe("meetings", () => {
   it("adds, lists, shows on today, repeats and removes", async () => {
     const { run, store } = setup();

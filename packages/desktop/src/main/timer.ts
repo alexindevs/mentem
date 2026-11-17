@@ -78,6 +78,7 @@ export function toView(state: TimerState, store: Store, core: typeof Core): Time
     meeting,
     nextMeeting: state.nextMeeting ? { title: state.nextMeeting.title, startMin: state.nextMeeting.startMin } : null,
     idle: state.idle,
+    extendRoomMin: block ? store.blockRoom(state.date, block.slot) : 0,
     dayOff: state.dayOff,
     nextLabel: state.nextBlock?.name ?? null,
     dayComplete: state.dayComplete,

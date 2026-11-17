@@ -112,6 +112,6 @@ export function runDailyMaintenance(
   pruneSnapshots(snapshotDir, retention);
   // One-day adjustments are only useful on their own date.
   const old = addDays(today, -30);
-  for (const table of ["routine_override", "block_override", "day_off"]) db.prepare(`DELETE FROM ${table} WHERE date < ?`).run(old);
+  for (const table of ["routine_override", "block_override", "block_extension", "day_off"]) db.prepare(`DELETE FROM ${table} WHERE date < ?`).run(old);
   return taken;
 }

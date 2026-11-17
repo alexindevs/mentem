@@ -271,6 +271,13 @@ export class TimerEngine {
     for (const run of s.routineRuns) this.store.extendRoutine(s.date, run.item.id, minutes);
   }
 
+  /** Makes the running work block last longer, today only. Returns when it now ends, in minutes of the day. */
+  extendBlock(minutes: number): number {
+    const s = this.state();
+    if (!s.block) throw new Error("No work block is running.");
+    return this.store.extendBlock(s.date, s.block.slot, minutes);
+  }
+
   /** In an empty block: stay empty instead of being asked to fill it. */
   idle(): void {
     this.state();
