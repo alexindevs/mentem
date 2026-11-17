@@ -5,6 +5,7 @@ import { blockTime, formatTime } from "../../lib/time";
 import { DRAG_TYPE, TaskRow } from "./TaskRow";
 
 interface DayListProps {
+  hideDone: boolean;
   data: TodayData;
   timer: TimerView | null;
   onToggle(id: string, done: boolean): void;
@@ -25,9 +26,10 @@ function Done() {
   );
 }
 
-function Block({ block, current, timer, onToggle, onOpen, onDrop }: { block: TodayData["blocks"][number]; current: boolean; timer: TimerView | null } & Pick<DayListProps, "onToggle" | "onOpen" | "onDrop">) {
+function Block({ block, current, timer, hideDone, onToggle, onOpen, onDrop }: { block: TodayData["blocks"][number]; current: boolean; timer: TimerView | null } & Pick<DayListProps, "hideDone" | "onToggle" | "onOpen" | "onDrop">) {
   const [over, setOver] = useState(false);
   const finished = block.tasks.length > 0 && block.tasks.every((t) => t.done);
+  const shown = hideDone ? block.tasks.filter((t) => !t.done) : block.tasks;
   const count = finished ? `${block.tasks.length} of ${block.tasks.length}` : `${block.used} of ${block.capacity}`;
   const accept = (event: React.DragEvent) => {
     if (!event.dataTransfer.types.includes(DRAG_TYPE)) return;
@@ -52,14 +54,16 @@ function Block({ block, current, timer, onToggle, onOpen, onDrop }: { block: Tod
           {blockTime(block.startMin)} – {blockTime(block.endMin)} · {count}
         </span>
       </header>
-      {block.tasks.length === 0 ? (
+      {finished && hideDone ? (
+        <p className="drop-zone t-body-m">All done</p>
+      ) : block.tasks.length === 0 ? (
         <div className="drop-zone t-body-m">
           <span aria-hidden="true">+</span> Drop a task
         </div>
       ) : (
         <ul className="task-list">
           <AnimatePresence initial={false}>
-            {block.tasks.map((task) => (
+            {shown.map((task) => (
               <TaskRow key={task.id} task={task} current={current && timer?.task?.id === task.id} onToggle={(done) => onToggle(task.id, done)} onOpen={() => onOpen(task.id)} />
             ))}
           </AnimatePresence>
@@ -70,7 +74,7 @@ function Block({ block, current, timer, onToggle, onOpen, onDrop }: { block: Tod
 }
 
 /** Routine items and work blocks in the order the day runs. */
-export function DayList({ data, timer, onToggle, onOpen, onDrop }: DayListProps) {
+export function DayList({ data, timer, hideDone, onToggle, onOpen, onDrop }: DayListProps) {
   const entries: Entry[] = [
     ...data.routine.map((item): Entry => ({ kind: "routine", at: item.startMin, item })),
     ...data.blocks.map((block): Entry => ({ kind: "block", at: block.startMin, block })),
@@ -94,7 +98,7 @@ export function DayList({ data, timer, onToggle, onOpen, onDrop }: DayListProps)
           );
         }
         const current = timer?.blockName === entry.block.name && (timer.kind === "work" || timer.kind === "break");
-        return <Block key={`b${entry.block.slot}`} block={entry.block} current={current} timer={timer} onToggle={onToggle} onOpen={onOpen} onDrop={onDrop} />;
+        return <Block key={`b${entry.block.slot}`} block={entry.block} current={current} timer={timer} hideDone={hideDone} onToggle={onToggle} onOpen={onOpen} onDrop={onDrop} />;
       })}
     </div>
   );

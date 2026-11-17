@@ -16,7 +16,7 @@ function greeting(name: string, at: Date): string {
 
 const dateLabel = (date: Date) => new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long" }).format(date);
 
-export function Today({ tick, onOpenTask, onChange }: { tick: number; onOpenTask(id: string): void; onChange(): void }) {
+export function Today({ tick, hideDone, onOpenTask, onChange }: { tick: number; hideDone: boolean; onOpenTask(id: string): void; onChange(): void }) {
   const [data, setData] = useState<TodayData | null>(null);
   const snapshot = useTimer();
   const view = snapshot?.view ?? null;
@@ -66,7 +66,7 @@ export function Today({ tick, onOpenTask, onChange }: { tick: number; onOpenTask
         />
         <div className="today__columns">
           {data.hasTemplate ? (
-            <DayList data={data} timer={view} onToggle={toggle} onOpen={onOpenTask} onDrop={(id, slot) => run(window.mentem.taskAssign(id, slot))} />
+            <DayList hideDone={hideDone} data={data} timer={view} onToggle={toggle} onOpen={onOpenTask} onDrop={(id, slot) => run(window.mentem.taskAssign(id, slot))} />
           ) : (
             <div className="day-list">
               <h2 className="t-h-m">Pick a template</h2>

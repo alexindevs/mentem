@@ -20,6 +20,7 @@ export interface Settings {
   keepRunningInTray: boolean;
   startOnLogin: boolean;
   weekPopupsEnabled: boolean;
+  hideDoneTasks: boolean;
   appName: string;
   cliName: string;
   userName: string;
@@ -41,6 +42,7 @@ export const DEFAULT_SETTINGS: Settings = {
   keepRunningInTray: true,
   startOnLogin: true,
   weekPopupsEnabled: true,
+  hideDoneTasks: false,
   appName: "Mentem",
   cliName: "mentem",
   userName: "",

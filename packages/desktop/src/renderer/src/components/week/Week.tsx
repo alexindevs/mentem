@@ -7,6 +7,7 @@ import type { ToastMessage } from "../Toast";
 
 interface WeekProps {
   tick: number;
+  hideDone: boolean;
   onOpenTask(id: string): void;
   onToast(message: ToastMessage): void;
   onChange(): void;
@@ -36,7 +37,7 @@ function DayMenu({ day, templates, onPick }: { day: WeekDay; templates: WeekData
   );
 }
 
-function DayColumn({ day, templates, onOpenTask, onDrop, onPick }: { day: WeekDay; templates: WeekData["templates"]; onOpenTask(id: string): void; onDrop(id: string, date: string, slot: number): void; onPick(id: string | null): void }) {
+function DayColumn({ hideDone, day, templates, onOpenTask, onDrop, onPick }: { hideDone: boolean; day: WeekDay; templates: WeekData["templates"]; onOpenTask(id: string): void; onDrop(id: string, date: string, slot: number): void; onPick(id: string | null): void }) {
   const [over, setOver] = useState<number | null>(null);
   return (
     <section className={`week-day ${day.isToday ? "week-day--today" : ""} ${day.past ? "week-day--past" : ""}`}>
@@ -71,7 +72,7 @@ function DayColumn({ day, templates, onOpenTask, onDrop, onPick }: { day: WeekDa
               {blockTime(block.startMin)} – {blockTime(block.endMin)}
             </span>
           </div>
-          {block.tasks.map((task) => (
+          {block.tasks.filter((task) => !(hideDone && task.done)).map((task) => (
             <button
               key={task.id}
               draggable={!task.done}
@@ -92,7 +93,7 @@ function DayColumn({ day, templates, onOpenTask, onDrop, onPick }: { day: WeekDa
   );
 }
 
-export function Week({ tick, onOpenTask, onToast, onChange }: WeekProps) {
+export function Week({ tick, hideDone, onOpenTask, onToast, onChange }: WeekProps) {
   const [offset, setOffset] = useState(0);
   const [data, setData] = useState<WeekData | null>(null);
   const [overStrip, setOverStrip] = useState(false);
@@ -129,7 +130,7 @@ export function Week({ tick, onOpenTask, onToast, onChange }: WeekProps) {
       </header>
       <div className="week-grid">
         {data.days.map((day) => (
-          <DayColumn key={day.date} day={day} templates={data.templates} onOpenTask={onOpenTask} onDrop={(id, date, slot) => place(id, date, slot)} onPick={(templateId) => pick(day.date, templateId)} />
+          <DayColumn hideDone={hideDone} key={day.date} day={day} templates={data.templates} onOpenTask={onOpenTask} onDrop={(id, date, slot) => place(id, date, slot)} onPick={(templateId) => pick(day.date, templateId)} />
         ))}
       </div>
       <div

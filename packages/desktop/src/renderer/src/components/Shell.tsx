@@ -34,8 +34,8 @@ export function Shell({ settings, onSettings, onRunSetup }: { settings: AppSetti
       <section className="today__main">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div key={page} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0, transition: { duration: 0.22, ease } }} exit={{ opacity: 0, transition: { duration: 0.12 } }}>
-            {page === "Today" && <Today tick={tick} onOpenTask={setTaskId} onChange={changed} />}
-            {page === "Week" && <Week tick={tick} onOpenTask={setTaskId} onToast={setToast} onChange={changed} />}
+            {page === "Today" && <Today hideDone={settings.hideDoneTasks} tick={tick} onOpenTask={setTaskId} onChange={changed} />}
+            {page === "Week" && <Week hideDone={settings.hideDoneTasks} tick={tick} onOpenTask={setTaskId} onToast={setToast} onChange={changed} />}
             {page === "Templates" && <Templates onToast={setToast} onChange={changed} />}
             {page === "Projects" && <Projects tick={tick} onOpenTask={setTaskId} onChange={changed} />}
             {page === "Reports" && <Reports initialWeek={reportWeek} onWeekShown={reportShown} />}

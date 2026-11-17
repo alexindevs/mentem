@@ -30,6 +30,7 @@ export const settingsPatchSchema = z
     keepRunningInTray: z.boolean(),
     startOnLogin: z.boolean(),
     weekPopupsEnabled: z.boolean(),
+    hideDoneTasks: z.boolean(),
     appName: z.string().trim().min(1).max(40),
     cliName,
     userName: z.string().trim().max(60),

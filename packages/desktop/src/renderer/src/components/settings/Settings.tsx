@@ -60,6 +60,9 @@ function General({ settings, save, onRunSetup }: { settings: AppSettings; save(p
           ))}
         </div>
       </div>
+      <div className="group">
+        <SwitchRow title="Hide done tasks" body="Finished tasks leave Today and Week." checked={settings.hideDoneTasks} onChange={(hideDoneTasks) => save({ hideDoneTasks })} />
+      </div>
       <Button variant="secondary" onClick={onRunSetup} style={{ justifySelf: "start" }}>
         Run setup again
       </Button>
