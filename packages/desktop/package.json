@@ -1,0 +1,45 @@
+{
+  "name": "@mentem/desktop",
+  "productName": "Mentem",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mentem desktop app",
+  "license": "MIT",
+  "author": {
+    "name": "Alexin",
+    "email": "alexindevs@gmail.com"
+  },
+  "main": "./out/main/index.js",
+  "scripts": {
+    "start": "electron-vite dev --watch",
+    "dev": "electron-vite dev --watch",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "rebuild:native": "electron-rebuild -f -w better-sqlite3 -m ../..",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.2.1",
+    "@tailwindcss/vite": "^4.3.5",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "electron": "^45.3.2",
+    "electron-vite": "^6.0.0",
+    "tailwindcss": "^4.3.5",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  },
+  "dependencies": {
+    "@fontsource-variable/fraunces": "^5.3.0",
+    "@fontsource-variable/hanken-grotesk": "^5.3.0",
+    "@mentem/core": "workspace:*",
+    "motion": "^14.14.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zod": "^4.6.7"
+  }
+}

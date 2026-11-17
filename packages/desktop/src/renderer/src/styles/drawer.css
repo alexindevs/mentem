@@ -1,0 +1,32 @@
+.scrim { position: fixed; inset: 0; z-index: 20; background: color-mix(in srgb, var(--text) 32%, transparent); }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; z-index: 21; display: flex; flex-direction: column; box-sizing: border-box; width: 500px; max-width: 100%; border-left: 1px solid var(--border); background: var(--bg); }
+.drawer__top { display: flex; flex: none; align-items: center; justify-content: space-between; padding: 22px 28px 0; }
+.drawer__icons { display: flex; gap: 4px; }
+.drawer__body { display: grid; flex: 1; align-content: start; gap: 18px; overflow-y: auto; padding: 8px 28px 32px; }
+.drawer__title { display: block; width: 100%; min-height: 92px; resize: none; border: 0; background: transparent; color: var(--text); outline: none; padding: 0; }
+.drawer__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.drawer__section { display: grid; gap: 10px; }
+.drawer__heading { margin: 0; }
+.drawer__check { display: flex; align-items: center; gap: 12px; min-height: 28px; }
+.drawer__check--done span { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+.drawer__add { display: flex; align-items: center; gap: 10px; width: fit-content; padding: 4px 0; border: 0; background: transparent; color: var(--accent); font-weight: 600; }
+.drawer__repeat { display: flex; align-items: center; gap: 12px; }
+.drawer__notes { height: auto; min-height: 96px; padding: 12px 16px; resize: vertical; }
+.drawer .pill { height: 36px; padding: 0 16px; }
+
+.dropdown { position: relative; display: block; }
+.dropdown select { appearance: none; box-sizing: border-box; width: 100%; height: 44px; padding: 0 40px 0 16px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg); color: var(--text); outline: none; }
+.dropdown select:focus { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.dropdown select:disabled { color: var(--muted); }
+.dropdown::after { position: absolute; top: 50%; right: 16px; width: 10px; height: 6px; background: var(--text); clip-path: polygon(0 0, 100% 0, 50% 100%); content: ""; pointer-events: none; transform: translateY(-50%); }
+
+.dialog-scrim { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; background: color-mix(in srgb, var(--text) 24%, transparent); }
+.dialog { display: grid; gap: 12px; box-sizing: border-box; width: min(420px, calc(100% - 48px)); padding: 24px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg); }
+.dialog h3, .dialog p { margin: 0; }
+.dialog__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+
+.drawer .stepper { width: fit-content; }
+.drawer .field { justify-items: start; }
+.drawer .field .input, .drawer .field .dropdown { width: 100%; }
+.drawer__section > .button { justify-self: start; }
+.drawer__check--done .task-row__check { border-color: var(--accent); background: var(--accent); }
