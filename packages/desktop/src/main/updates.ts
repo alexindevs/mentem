@@ -9,6 +9,16 @@ export interface Updater {
   quitAndInstall(isSilent?: boolean, isForceRunAfter?: boolean): void;
 }
 
+/**
+ * Finds the updater inside the electron-updater module. It is a CommonJS module whose
+ * `autoUpdater` is a lazy getter, so when it is loaded with import() the named export may be
+ * missing and the object sits under `default` instead. Either way, this returns it.
+ */
+export function pickUpdater(mod: unknown): Updater | null {
+  const m = mod as { autoUpdater?: Updater; default?: { autoUpdater?: Updater } } | null | undefined;
+  return m?.autoUpdater ?? m?.default?.autoUpdater ?? null;
+}
+
 export interface UpdatesOptions {
   /** Null in a development run, where there is nothing installed to update. */
   updater: Updater | null;

@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 import { describe, expect, it, vi } from "vitest";
-import { createUpdates, type Updater } from "../src/main/updates";
+import { createUpdates, pickUpdater, type Updater } from "../src/main/updates";
 
 class FakeUpdater extends EventEmitter {
   autoDownload = false;
@@ -22,6 +22,22 @@ const make = (fake = new FakeUpdater()) => {
   const updates = createUpdates({ updater: fake as unknown as Updater, version: "0.1.0", beforeInstall, ready, now: () => 1000, firstCheckMs: 50, everyMs: 100 });
   return { fake, updates, beforeInstall, ready };
 };
+
+describe("finding the updater in the module", () => {
+  const updater = new FakeUpdater() as unknown as Updater;
+
+  it("takes the named export when there is one, or the one under default when there is not", () => {
+    expect(pickUpdater({ autoUpdater: updater })).toBe(updater);
+    expect(pickUpdater({ default: { autoUpdater: updater } })).toBe(updater);
+    expect(pickUpdater({ autoUpdater: updater, default: { autoUpdater: new FakeUpdater() } })).toBe(updater);
+  });
+
+  it("gives nothing when the module has no updater, so the app says updates are unavailable", () => {
+    expect(pickUpdater({})).toBeNull();
+    expect(pickUpdater(null)).toBeNull();
+    expect(pickUpdater({ default: {} })).toBeNull();
+  });
+});
 
 describe("updates", () => {
   it("does nothing in a development run", async () => {
