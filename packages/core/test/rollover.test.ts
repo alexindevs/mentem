@@ -139,3 +139,27 @@ describe("rollover", () => {
     expect(store.effectiveAssignment(child.id)!.slot).toBe(2);
   });
 });
+
+import { blockEndedBetween } from "../src";
+
+describe("knowing when a block has ended", () => {
+  it("says yes only when a block's end falls inside the span", () => {
+    const { store } = makeStore();
+    standardWeek(store);
+    expect(blockEndedBetween(store, at(2026, 11, 16, 11, 50).getTime(), at(2026, 11, 16, 12, 0, ).getTime())).toBe(true);
+    expect(blockEndedBetween(store, at(2026, 11, 16, 9, 30).getTime(), at(2026, 11, 16, 11, 59).getTime())).toBe(false);
+    expect(blockEndedBetween(store, at(2026, 11, 16, 12, 0).getTime(), at(2026, 11, 16, 12, 30).getTime())).toBe(false);
+    expect(blockEndedBetween(store, at(2026, 11, 16, 12, 30).getTime(), at(2026, 11, 16, 17, 0).getTime())).toBe(true);
+  });
+
+  it("says yes across midnight and after a long sleep, and no for an empty or backwards span", () => {
+    const { store } = makeStore();
+    standardWeek(store);
+    expect(blockEndedBetween(store, at(2026, 11, 16, 20, 0).getTime(), at(2026, 11, 17, 8, 0).getTime())).toBe(false);
+    expect(blockEndedBetween(store, at(2026, 11, 16, 20, 0).getTime(), at(2026, 11, 17, 12, 0).getTime())).toBe(true);
+    expect(blockEndedBetween(store, at(2026, 11, 1, 8, 0).getTime(), at(2026, 11, 16, 8, 0).getTime())).toBe(true);
+    const t = at(2026, 11, 16, 12, 0).getTime();
+    expect(blockEndedBetween(store, t, t)).toBe(false);
+    expect(blockEndedBetween(store, t + 1000, t)).toBe(false);
+  });
+});

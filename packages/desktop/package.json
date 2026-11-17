@@ -1,7 +1,7 @@
 {
   "name": "@mentem/desktop",
   "productName": "Mentem",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "description": "Mentem desktop app",
   "license": "MIT",

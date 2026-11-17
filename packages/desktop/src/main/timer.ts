@@ -105,20 +105,23 @@ export function createTimerFeed(
   store: Store,
   core: typeof Core,
   send: (view: TimerView) => void,
-  onNewDay: () => void,
+  /** Runs rollover and the repeats: when the day changes, and when a work block ends (FR-35). */
+  onCatchUp: () => void,
 ): TimerFeed {
   let timeout: NodeJS.Timeout | null = null;
   let lastDate = engine.state().date;
+  let lastAt = store.clock.now();
 
   const refresh = (): TimerView => {
     if (timeout) clearTimeout(timeout);
     timeout = null;
     let state = engine.state();
-    if (state.date !== lastDate) {
+    if (state.date !== lastDate || core.blockEndedBetween(store, lastAt, state.now)) {
       lastDate = state.date;
-      onNewDay();
+      onCatchUp();
       state = engine.state();
     }
+    lastAt = state.now;
     const view = toView(state, store, core);
     send(view);
     if (state.nextEventAt !== null) {

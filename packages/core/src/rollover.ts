@@ -1,4 +1,4 @@
-import { addDays, dateOf, minutesOfDay, weekdayOf, type LocalDate } from "./dates";
+import { addDays, dateOf, instantOf, minutesOfDay, weekdayOf, type LocalDate } from "./dates";
 import type { Store } from "./store";
 import type { DayBlock, Slot } from "./types";
 
@@ -11,6 +11,26 @@ export interface RolloverResult {
 }
 
 const MAX_DAY_SEARCH = 14;
+
+/**
+ * Whether a work block ended between two moments, or so many days passed that one surely did.
+ * The running app uses it to run rollover when a block ends, and not at any other time, so a
+ * task that was moved back into a finished block stays where it was put.
+ */
+export function blockEndedBetween(store: Store, fromMs: number, toMs: number): boolean {
+  if (toMs <= fromMs) return false;
+  const last = dateOf(toMs);
+  let day = dateOf(fromMs);
+  for (let guard = 0; guard < 8; guard += 1) {
+    for (const block of store.blocksFor(day)) {
+      const end = instantOf(day, block.endMin);
+      if (end > fromMs && end <= toMs) return true;
+    }
+    if (day === last) return false;
+    day = addDays(day, 1);
+  }
+  return true;
+}
 
 /**
  * Moves open tasks out of blocks that have ended (FR-31 to FR-35):
