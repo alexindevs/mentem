@@ -280,9 +280,11 @@ export function createPageApi({ store, engine, core, refresh }: Deps): PageApi {
       const endOfWeek = core.weekdayOf(now) === settings.weekEndDay && minute >= lastBlockEnd;
       const reportStart = endOfWeek ? start : core.addDays(start, -7);
       const reportable = core.weeklyReport(store, reportStart, 1).planned > 0;
+      // A week that already has work placed in it has been planned: do not ask again.
+      const planned = (store.db.prepare("SELECT COUNT(*) AS n FROM assignment WHERE date >= ? AND date <= ?").get(start, core.addDays(start, 6)) as { n: number }).n > 0;
       return {
         report: reportable ? { weekStart: reportStart, label: range(reportStart, core.addDays(reportStart, 6), LONG) } : null,
-        planning: { weekStart: start, label: range(start, core.addDays(start, 6), LONG) },
+        planning: planned ? null : { weekStart: start, label: range(start, core.addDays(start, 6), LONG) },
       };
     },
 

@@ -266,3 +266,14 @@ describe("repeating", () => {
     expect(shown("2026-11-18")).toContain("Water plants");
   });
 });
+
+describe("the weekly popups", () => {
+  it("offers planning until the week has work placed in it", async () => {
+    const { api, store } = setup();
+    store.updateSettings({ setupCompleted: true });
+    expect((await api.promptsGet()).planning).toMatchObject({ weekStart: "2026-11-16" });
+    const t = store.createTask({ title: "Plan" });
+    await api.taskPlace(t.id, "2026-11-18", 1);
+    expect((await api.promptsGet()).planning).toBeNull();
+  });
+});

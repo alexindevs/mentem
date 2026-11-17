@@ -1,57 +1,94 @@
-# Mentem
+<p align="center">
+  <img src="packages/desktop/assets/icon.png" width="96" alt="Mentem">
+</p>
 
-A desktop planner and focus timer built around how an ADHD brain works: continuous pomodoros through your work blocks, the current task always on screen, and a day you can reshape without starting over.
+<h1 align="center">Mentem</h1>
 
-## What it does
+<p align="center">
+  A planner and focus timer for brains that lose the thread.<br>
+  It always knows what you are doing right now, and what comes next.
+</p>
 
-- **Continuous pomodoros** through each work block, with short and long breaks, and the current task and step always visible.
-- **Day templates**: wake and bed times, routine items, and work blocks. Apply a template per weekday, or adjust a single day.
-- **Tasks** with steps, due dates, estimates, projects and deliverables. Anything not placed on a day sits in **Unscheduled**.
-- **Repeats**: every day, every few days, certain weekdays, monthly or yearly.
-- **Rollover** of unfinished work, and a **weekly report and planning** flow.
-- **Mini window**, tray icon and notifications, so the timer stays in view without the main window.
-- Four themes, and a first-run setup that builds your day.
-- A **command line** that reads and changes the same data.
+<p align="center">
+  <img src="docs/today.png" alt="Today: the current task, a 25 minute timer and the day's blocks" width="900">
+</p>
 
-All data stays on your machine in a local SQLite database, with automatic snapshots, manual backups and JSON export and import.
+## Why
 
-## Packages
+Most planners hand you a list and wish you luck. Mentem does the deciding for you. Describe your day once, put tasks in the blocks you want to work in, and the timer carries you through: pomodoro after pomodoro, break after break, task after task, with the current task and step in front of you the whole time.
 
-| Package | Purpose |
-| --- | --- |
-| `packages/core` | Data layer and timer engine: store, migrations, repeats, reports |
-| `packages/desktop` | Electron app (React) |
-| `packages/cli` | The `mentem` command line |
+When the day goes sideways, nothing breaks. Unfinished work rolls over, anything without a home waits in **Unscheduled**, and the week gets a short review so you can see what actually happened.
 
-## Getting started
+## What you get
 
-Requires Node 22 and pnpm.
+**A timer that never stops asking "what now?"**
+Continuous pomodoros run through each work block. Short and long breaks, pause, skip and done, with the task, its steps and the next task always on screen. A mini window and a tray icon keep it visible when the app is closed.
+
+**A day that matches your real one**
+Templates hold your wake and bed times, routine items (lunch, a walk, dinner) and as many work blocks as fit in the day. Use one for weekdays, another for weekends, and change a single day without touching the template.
+
+**Tasks with room to breathe**
+Steps, due dates, pomodoro estimates, projects and deliverables. Drag a task into a block or leave it in Unscheduled. Repeats can be daily, every third day, certain weekdays, monthly or yearly.
+
+**Weeks you can look back on**
+Planning at the start of a week, a report at the end: planned versus done, done on time, rollovers and postponements. Finished tasks stay struck through, with the date they were finished.
+
+**A command line for everything**
+Add tasks, place them, pause the timer or read the week without leaving the terminal.
+
+**Yours alone**
+Everything lives in a local SQLite file. Automatic snapshots, manual backups, and JSON export and import. No account and no network.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/week.png" alt="The week at a glance"><br><sub>The week, one column per day</sub></td>
+    <td width="50%"><img src="docs/templates.png" alt="Day templates with work blocks and routine"><br><sub>Templates: blocks and routine in one place</sub></td>
+  </tr>
+</table>
+
+<p align="center">
+  <img src="docs/today-dark.png" alt="The dark orange theme" width="900"><br>
+  <sub>Four themes: white and green, white and black, black and orange, black and white</sub>
+</p>
+
+## Command line
+
+The app installs a `mentem` launcher the first time it runs.
+
+```bash
+mentem today                                        # the day, block by block
+mentem task add "Write the report" --due fri --est 3
+mentem assign <id> --date today --block Morning
+mentem assign <id> --date today --block Morning --repeat daily --every 3
+mentem now                                          # what is running, and what is left
+mentem pause                                        # control the running app
+mentem week
+mentem report
+```
+
+Run `mentem help` for the full list.
+
+## Run it
+
+Needs Node 22 and pnpm.
 
 ```bash
 pnpm install
 pnpm --filter @mentem/desktop start
 ```
 
-That runs the desktop app in development with reload.
-
-## Scripts
-
 ```bash
-pnpm test        # all packages
+pnpm test         # every package
 pnpm typecheck
 pnpm lint
 ```
 
-## Command line
+## How it is built
 
-The app installs a `mentem` launcher on first run. A few examples:
+| Package | What it is |
+| --- | --- |
+| `packages/core` | The data layer and timer engine: SQLite store, forward-only migrations, repeats, rollover, reports. No UI, fully tested. |
+| `packages/desktop` | The Electron app. React 19, Motion, Tailwind over CSS variables for the themes. One validated IPC channel between the window and the main process. |
+| `packages/cli` | The `mentem` command, talking to the same database and to the running app over a local socket. |
 
-```bash
-mentem today
-mentem task add "Write the report" --due fri --est 3
-mentem assign <id> --date today --block Morning
-mentem pause
-mentem report
-```
-
-Run `mentem help` for every command.
+The timer is event-driven: one timer is armed for the next change, so an idle app uses almost nothing.
