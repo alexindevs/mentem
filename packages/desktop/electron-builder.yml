@@ -9,6 +9,9 @@ files:
   - assets/**
   - "!assets/Mentem-Logo.png"
   - package.json
+# The folder the installer makes is named after this, not after "@mentem/desktop".
+extraMetadata:
+  name: mentem
 asar: true
 # The SQLite module is native code and has to sit outside the archive to load.
 asarUnpack:
