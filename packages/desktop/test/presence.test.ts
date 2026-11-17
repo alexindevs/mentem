@@ -131,7 +131,7 @@ describe("the app icons", () => {
 
 describe("the Windows icon file", () => {
   it("wraps the PNG so notifications can show the logo", async () => {
-    const { pngToIco } = await import("../src/main/identity");
+    const { pngToIco } = await import("../src/main/icofile");
     const png = readFileSync(join(__dirname, "..", "assets", "icon.png"));
     const ico = pngToIco(png, 256);
     expect([...ico.subarray(0, 6)]).toEqual([0, 0, 1, 0, 1, 0]);
