@@ -105,6 +105,8 @@ function createWindow(hash: string): BrowserWindow {
     },
   });
   win.once("ready-to-show", () => win.show());
+  // The main window and the mini window never show together.
+  win.on("show", () => presence?.closeMini());
   // With "keep running in the tray" on, closing the window only hides it.
   win.on("close", (event) => {
     if (!quitting && store?.getSettings().keepRunningInTray) {
@@ -236,6 +238,9 @@ app.whenReady().then(async () => {
   presence = createPresence({
     settings: () => openStoreRef.getSettings(),
     createMini: (height) => createMiniWindow(height),
+    hideMain: () => {
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.hide();
+    },
     showMain: () => {
       if (!mainWindow || mainWindow.isDestroyed()) mainWindow = createWindow("");
       if (mainWindow.isMinimized()) mainWindow.restore();

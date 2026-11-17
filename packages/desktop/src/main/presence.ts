@@ -9,6 +9,8 @@ interface Options {
   /** Opens the mini window's page in a new, locked-down window. */
   createMini(height: number): BrowserWindow;
   showMain(): void;
+  /** Puts the main window away while the mini window is up. */
+  hideMain(): void;
   act(command: "pause" | "resume" | "skip"): void;
   quit(): void;
 }
@@ -20,6 +22,8 @@ interface Options {
 export function createPresence(o: Options) {
   let tray: Tray | null = null;
   let mini: BrowserWindow | null = null;
+  /** Set while the mini window is being closed because the main window is opening. */
+  let closingForMain = false;
   let last: TimerView | null = null;
 
   // The logo, in a version that shows on dark taskbars (the black leaf is drawn light there).
@@ -48,9 +52,21 @@ export function createPresence(o: Options) {
     mini.on("closed", () => {
       mini = null;
       tray?.setContextMenu(menu());
+      // With no tray icon there would be no way back to the app, so the main window returns.
+      if (!tray && !closingForMain) o.showMain();
     });
     tray?.setContextMenu(menu());
+    // One at a time: the mini window takes over from the main one.
+    o.hideMain();
     return true;
+  }
+
+  /** Closes the mini window because the main window is opening. */
+  function closeMini(): void {
+    if (!mini || mini.isDestroyed()) return;
+    closingForMain = true;
+    mini.destroy();
+    closingForMain = false;
   }
 
   function applySettings(): void {
@@ -94,6 +110,7 @@ export function createPresence(o: Options) {
 
   return {
     applySettings,
+    closeMini,
     notify,
     onView,
     toggleMini,
