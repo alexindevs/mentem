@@ -218,3 +218,4 @@
 .shortcuts dt { width: 64px; flex: none; }
 .shortcuts dd { margin: 0; color: var(--muted); }
 .shortcuts kbd { display: inline-grid; place-items: center; min-width: 28px; height: 26px; box-sizing: border-box; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font: inherit; font-size: 13px; font-weight: 600; }
+.tpl-item__name::placeholder { color: var(--muted); font-weight: 500; }

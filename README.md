@@ -74,7 +74,7 @@ Run `mentem help` for the full list.
 
 ## Install
 
-Download the installer from the [latest release](https://github.com/alexindevs/mentem/releases/latest): `Mentem-Setup-<version>.exe` for Windows or `mentem_<version>_amd64.deb` for Debian and Ubuntu (`sudo apt install ./mentem_<version>_amd64.deb`).
+Download the installer from the [latest release](https://github.com/alexindevs/mentem/releases/latest): `Mentem-Setup-<version>.exe` for Windows, `mentem_<version>_amd64.deb` for Debian and Ubuntu (`sudo apt install ./mentem_<version>_amd64.deb`), or `mentem_<version>_x64.pacman` for Arch (`sudo pacman -U ./mentem_<version>_x64.pacman`).
 
 The app looks for new versions by itself, downloads them quietly and installs them when you quit. Your data lives in its own folder (`%APPDATA%\mentem` on Windows), so updating or uninstalling never touches it, and a backup is taken before each update.
 

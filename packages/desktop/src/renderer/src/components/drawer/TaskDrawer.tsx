@@ -198,12 +198,19 @@ export function TaskDrawer({ taskId, onClose, onChange, onWorkOn }: TaskDrawerPr
 
             <div className="drawer__body">
               <textarea className="drawer__title t-h-xl" aria-label="Title" rows={2} maxLength={160} value={title} onChange={(e) => setTitle(e.target.value)} onBlur={() => title.trim() && title !== task.title && patch({ title })} />
-              <div className="pills">
-                {STATUSES.map((s) => (
-                  <Pill key={s.id} selected={task.status === s.id} onClick={() => patch({ status: s.id })}>
-                    {s.label}
-                  </Pill>
-                ))}
+              <div className="drawer__status">
+                <div className="pills">
+                  {STATUSES.map((s) => (
+                    <Pill key={s.id} selected={task.status === s.id} onClick={() => patch({ status: s.id })}>
+                      {s.label}
+                    </Pill>
+                  ))}
+                </div>
+                {task.workable && task.status !== "done" && (
+                  <Button variant="secondary" onClick={() => onWorkOn(task.id)}>
+                    Work on this now
+                  </Button>
+                )}
               </div>
 
               <div className="drawer__grid">
@@ -334,11 +341,6 @@ export function TaskDrawer({ taskId, onClose, onChange, onWorkOn }: TaskDrawerPr
                     <span className={task.assigned ? "" : "muted"}>{task.assigned ? "Repeat" : "Repeat · schedule it first"}</span>
                   )}
                 </div>
-                {task.workable && task.status !== "done" && (
-                  <Button variant="secondary" onClick={() => onWorkOn(task.id)}>
-                    Work on this now
-                  </Button>
-                )}
               </section>
 
               <section className="drawer__section">

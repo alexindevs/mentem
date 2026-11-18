@@ -34,6 +34,7 @@ export interface WeeklyReport {
 }
 
 interface EventRow {
+  at: number;
   task_id: string;
   kind: string;
   from_date: string | null;
@@ -50,13 +51,24 @@ export function weeklyReport(store: Store, weekStart: LocalDate, depth = 0): Wee
 
   const events = store.db
     .prepare(
-      "SELECT task_id, kind, from_date, to_date, to_slot FROM assignment_event WHERE (to_date BETWEEN ? AND ?) OR (from_date BETWEEN ? AND ?) ORDER BY at, id",
+      "SELECT at, task_id, kind, from_date, to_date, to_slot FROM assignment_event WHERE (to_date BETWEEN ? AND ?) OR (from_date BETWEEN ? AND ?) ORDER BY at, id",
     )
     .all(weekStart, end, weekStart, end) as EventRow[];
 
   const first = new Map<string, { date: LocalDate; slot: number | null }>();
   const moves = new Map<string, Array<{ from: LocalDate; to: LocalDate }>>();
   for (const e of events) {
+    // A move made before the day it moves the task from has arrived is planning, not slipping:
+    // the plan simply becomes the new place, and nothing is logged as rescheduled.
+    if ((e.kind === "moved" || e.kind === "rolled") && e.from_date && dateOf(e.at) < e.from_date) {
+      const plan = first.get(e.task_id);
+      if (plan && plan.date === e.from_date) {
+        if (e.to_date && e.to_date >= weekStart && e.to_date <= end) first.set(e.task_id, { date: e.to_date, slot: e.to_slot });
+        else first.delete(e.task_id);
+      }
+      if (!first.has(e.task_id) && e.to_date && e.to_date >= weekStart && e.to_date <= end) first.set(e.task_id, { date: e.to_date, slot: e.to_slot });
+      continue;
+    }
     if (e.to_date && e.to_date >= weekStart && e.to_date <= end && ["assigned", "moved", "rolled"].includes(e.kind) && !first.has(e.task_id)) first.set(e.task_id, { date: e.to_date, slot: e.to_slot });
     if ((e.kind === "moved" || e.kind === "rolled") && e.from_date && e.from_date >= weekStart && e.from_date <= end && e.to_date) {
       const list = moves.get(e.task_id) ?? [];
@@ -126,7 +138,7 @@ export function weeklyReport(store: Store, weekStart: LocalDate, depth = 0): Wee
 /** Whether every task planned for a day was finished on it. Null when nothing was planned. */
 function dayCleared(store: Store, date: LocalDate): boolean | null {
   const events = store.db
-    .prepare("SELECT task_id, kind, from_date, to_date FROM assignment_event WHERE to_date = ? OR from_date = ? ORDER BY at, id")
+    .prepare("SELECT at, task_id, kind, from_date, to_date FROM assignment_event WHERE to_date = ? OR from_date = ? ORDER BY at, id")
     .all(date, date) as EventRow[];
   const stayed = new Set<string>();
   let pushed = false;
@@ -134,7 +146,8 @@ function dayCleared(store: Store, date: LocalDate): boolean | null {
     if (e.to_date === date && ["assigned", "moved", "rolled"].includes(e.kind)) stayed.add(e.task_id);
     if (e.from_date === date && ["moved", "rolled", "unassigned"].includes(e.kind)) {
       stayed.delete(e.task_id);
-      if (e.kind !== "unassigned") pushed = true;
+      // Moved away ahead of the day: planning, not a push.
+      if (e.kind !== "unassigned" && dateOf(e.at) >= date) pushed = true;
     }
   }
   if (stayed.size === 0 && !pushed) return null;

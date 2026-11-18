@@ -37,6 +37,8 @@ export function Templates({ onToast, onChange }: { onToast(message: ToastMessage
   const [dateOpen, setDateOpen] = useState(false);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<TemplateDetail["routine"][number] | null>(null);
+  /** The item just added, so its name box can take the focus and show "New item" as a hint. */
+  const [justAdded, setJustAdded] = useState<TemplateDetail["routine"][number] | null>(null);
 
   const adopt = useCallback((next: TemplatesData, pick?: string | null) => {
     setData(next);
@@ -61,7 +63,9 @@ export function Templates({ onToast, onChange }: { onToast(message: ToastMessage
   const save = () => {
     if (!draft) return;
     setError("");
-    window.mentem.templateSave(draft).then((next) => { adopt(next, draft.id); onChange(); }, () => setError("Check the times and blocks"));
+    // An item that was added and never named is dropped rather than saved as a blank.
+    const named = { ...draft, routine: draft.routine.filter((r) => r.title.trim() !== "") };
+    window.mentem.templateSave(named).then((next) => { adopt(next, draft.id); onChange(); }, () => setError("Check the times and blocks"));
   };
 
   return (
@@ -142,7 +146,11 @@ export function Templates({ onToast, onChange }: { onToast(message: ToastMessage
               <div className="tpl__col">
                 <div className="tpl__routine-head">
                   <h2 className="t-h-m">Routine</h2>
-                  <button className="icon-button accent-text" aria-label="Add a routine item" onClick={() => edit({ routine: [...draft.routine, { title: "New item", startMin: Math.min(draft.wakeMin + 60, 24 * 60 - 30), endMin: null, repeat: null }] })}>
+                  <button className="icon-button accent-text" aria-label="Add a routine item" onClick={() => {
+                    const added = { title: "", startMin: Math.min(draft.wakeMin + 60, 24 * 60 - 30), endMin: null, repeat: null };
+                    setJustAdded(added);
+                    edit({ routine: [...draft.routine, added] });
+                  }}>
                     +
                   </button>
                 </div>
@@ -150,14 +158,14 @@ export function Templates({ onToast, onChange }: { onToast(message: ToastMessage
                   {[...draft.routine].sort((a, b) => a.startMin - b.startMin).map((item, index) => (
                     <div key={`${item.id ?? "new"}-${index}`} className="tpl-item">
                       <div className="tpl-item__top">
-                        <input className="tpl-item__name" aria-label="Routine item" maxLength={80} value={item.title} onChange={(e) => edit({ routine: draft.routine.map((r) => (r === item ? { ...r, title: e.target.value } : r)) })} />
-                        <button className="icon-button" aria-label={`Remove ${item.title}`} onClick={() => edit({ routine: draft.routine.filter((r) => r !== item) })}>
+                        <input className="tpl-item__name" aria-label="Routine item" placeholder="New item" autoFocus={item === justAdded} maxLength={80} value={item.title} onChange={(e) => edit({ routine: draft.routine.map((r) => (r === item ? { ...r, title: e.target.value } : r)) })} />
+                        <button className="icon-button" aria-label={`Remove ${item.title || "item"}`} onClick={() => edit({ routine: draft.routine.filter((r) => r !== item) })}>
                           ×
                         </button>
                       </div>
                       <div className="tpl-item__meta">
-                        <RangeField label={item.title} start={item.startMin} end={item.endMin} onChange={(s, e) => edit({ routine: draft.routine.map((r) => (r === item ? { ...r, startMin: s, endMin: e } : r)) })} />
-                        <button className={`chip chip-button ${item.repeat ? "chip--accent-outline" : ""}`} aria-label={`Repeat for ${item.title}`} onClick={() => setEditing(item)}>
+                        <RangeField label={item.title || "New item"} start={item.startMin} end={item.endMin} onChange={(s, e) => edit({ routine: draft.routine.map((r) => (r === item ? { ...r, startMin: s, endMin: e } : r)) })} />
+                        <button className={`chip chip-button ${item.repeat ? "chip--accent-outline" : ""}`} aria-label={`Repeat for ${item.title || "new item"}`} onClick={() => setEditing(item)}>
                           {item.repeat ? item.repeat.label : "Every time"}
                         </button>
                       </div>

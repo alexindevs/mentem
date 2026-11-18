@@ -25,6 +25,9 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - name: Tools the Arch package needs
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libarchive-tools
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
@@ -35,5 +38,6 @@ jobs:
           path: |
             packages/desktop/release/*.exe
             packages/desktop/release/*.deb
+            packages/desktop/release/*.pacman
             packages/desktop/release/latest*.yml
           if-no-files-found: error

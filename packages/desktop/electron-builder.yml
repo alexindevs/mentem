@@ -43,6 +43,8 @@ linux:
   target:
     - target: deb
       arch: x64
+    - target: pacman
+      arch: x64
   icon: assets/icon.png
   category: Utility
   maintainer: Alexin <alexindevs@gmail.com>
@@ -50,4 +52,4 @@ linux:
   description: A planner and focus timer that runs your day through work blocks, pomodoros and the task in front of you.
   # Not "mentem", which is the name of the command-line launcher.
   executableName: mentem-app
-  artifactName: mentem_${version}_${arch}.deb
+  artifactName: mentem_${version}_${arch}.${ext}

@@ -280,7 +280,10 @@ export function createApi({ store, engine, core, info, refresh, host }: Deps): A
     },
 
     async taskFocus(id) {
-      engine.switchTask(idOf(id));
+      const taskId = idOf(id);
+      // Starting on a task means it is in progress; one that is done stays done.
+      if (store.getTask(taskId)?.status === "open") store.setStatus(taskId, "in_progress");
+      engine.switchTask(taskId);
       return refresh();
     },
 

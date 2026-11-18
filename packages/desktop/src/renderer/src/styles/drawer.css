@@ -53,3 +53,4 @@
 .step-row:hover .step-row__delete, .step-row__delete:focus-visible { opacity: 1; }
 .step-row__delete:hover { background: var(--surface); color: var(--danger); }
 .step-row__delete:active { transform: scale(0.9); }
+.drawer__status { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }

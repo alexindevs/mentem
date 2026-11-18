@@ -52,3 +52,48 @@ describe("weekly report", () => {
     expect(weeklyReport(store, MON).streak).toEqual({ current: 2, best: 2 });
   });
 });
+
+describe("moves made before the day arrives", () => {
+  it("are planning, not rescheduling: the plan just becomes the new place", () => {
+    const { store, clock } = makeStore(at(2026, 11, 16, 8, 0));
+    standardWeek(store);
+    const t = store.createTask({ title: "Planned ahead" });
+    store.assign(t.id, { date: "2026-11-18", slot: 1 });
+    // Tuesday: the task is moved from Wednesday to Thursday, and between blocks on Thursday.
+    clock.set(at(2026, 11, 17, 9, 0));
+    store.assign(t.id, { date: "2026-11-19", slot: 1 });
+    store.assign(t.id, { date: "2026-11-19", slot: 2 });
+    const r = weeklyReport(store, MON);
+    expect(r).toMatchObject({ planned: 1, rescheduled: 0, unfinished: 1 });
+    expect(r.lists.rescheduled).toEqual([]);
+    expect(r.mostRescheduled).toBeNull();
+    expect(r.procrastination.pct).toBe(0);
+  });
+
+  it("still counts a move made on the day itself, or after it", () => {
+    const { store, clock } = makeStore(at(2026, 11, 16, 8, 0));
+    standardWeek(store);
+    const t = store.createTask({ title: "Slipped" });
+    store.assign(t.id, { date: "2026-11-18", slot: 1 });
+    clock.set(at(2026, 11, 18, 11, 0));
+    store.assign(t.id, { date: "2026-11-19", slot: 1 });
+    const r = weeklyReport(store, MON);
+    expect(r.rescheduled).toBe(1);
+    expect(r.lists.rescheduled[0]).toMatchObject({ title: "Slipped", move: { from: "2026-11-18", to: "2026-11-19" } });
+  });
+
+  it("does not stop a day with only planning changes from counting as cleared, or count it as pushed", () => {
+    const { store, clock } = makeStore(at(2026, 11, 16, 8, 0));
+    standardWeek(store);
+    const moved = store.createTask({ title: "Moved ahead" });
+    store.assign(moved.id, { date: "2026-11-17", slot: 1 });
+    const kept = store.createTask({ title: "Kept" });
+    store.assign(kept.id, { date: "2026-11-17", slot: 1 });
+    clock.set(at(2026, 11, 16, 20, 0));
+    store.assign(moved.id, { date: "2026-11-19", slot: 1 });
+    clock.set(at(2026, 11, 17, 10, 0));
+    store.setStatus(kept.id, "done");
+    clock.set(at(2026, 11, 18, 8, 0));
+    expect(weeklyReport(store, MON).streak.best).toBeGreaterThanOrEqual(1);
+  });
+});

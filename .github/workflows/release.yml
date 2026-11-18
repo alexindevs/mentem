@@ -36,6 +36,9 @@ jobs:
             echo "Tag ${GITHUB_REF_NAME} does not match version $version in packages/desktop/package.json"
             exit 1
           fi
+      - name: Tools the Arch package needs
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libarchive-tools
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
