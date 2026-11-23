@@ -63,6 +63,8 @@ describe("moves made before the day arrives", () => {
     clock.set(at(2026, 11, 17, 9, 0));
     store.assign(t.id, { date: "2026-11-19", slot: 1 });
     store.assign(t.id, { date: "2026-11-19", slot: 2 });
+    // Judged once Thursday, the day it ended up on, has begun.
+    clock.set(at(2026, 11, 19, 12, 0));
     const r = weeklyReport(store, MON);
     expect(r).toMatchObject({ planned: 1, rescheduled: 0, unfinished: 1 });
     expect(r.lists.rescheduled).toEqual([]);
@@ -95,5 +97,52 @@ describe("moves made before the day arrives", () => {
     store.setStatus(kept.id, "done");
     clock.set(at(2026, 11, 18, 8, 0));
     expect(weeklyReport(store, MON).streak.best).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("a week that is still going on", () => {
+  it("leaves the days that have not started out of the numbers", () => {
+    const { store, clock } = makeStore(at(2026, 11, 16, 8, 0));
+    standardWeek(store);
+    const today = store.createTask({ title: "Today" });
+    store.assign(today.id, { date: "2026-11-16", slot: 1 });
+    store.setStatus(today.id, "done");
+    for (const title of ["a", "b", "c"]) {
+      const t = store.createTask({ title });
+      store.assign(t.id, { date: "2026-11-17", slot: 2 });
+    }
+    clock.set(at(2026, 11, 16, 14, 0));
+    const r = weeklyReport(store, MON);
+    expect(r).toMatchObject({ inProgress: true, planned: 1, done: 1, unfinished: 0, onTimeCount: 1, onTimePct: 100 });
+    expect(r.bestTime).toBeNull();
+    // Once Tuesday has begun, its tasks count as planned.
+    clock.set(at(2026, 11, 17, 9, 0));
+    expect(weeklyReport(store, MON)).toMatchObject({ planned: 4, unfinished: 3, onTimePct: 25 });
+  });
+
+  it("marks a week as in progress only until it ends", () => {
+    const { store, clock } = makeStore(at(2026, 11, 16, 8, 0));
+    standardWeek(store);
+    expect(weeklyReport(store, MON).inProgress).toBe(true);
+    clock.set(at(2026, 11, 23, 9, 0));
+    expect(weeklyReport(store, MON).inProgress).toBe(false);
+    expect(weeklyReport(store, "2026-11-23").inProgress).toBe(true);
+    expect(weeklyReport(store, "2026-11-30").inProgress).toBe(false);
+  });
+
+  it("names a best time only when something was finished on time in it", () => {
+    const { store, clock } = makeStore(at(2026, 11, 16, 8, 0));
+    standardWeek(store);
+    for (const title of ["a", "b", "c"]) {
+      const t = store.createTask({ title });
+      store.assign(t.id, { date: "2026-11-16", slot: 1 });
+    }
+    clock.set(at(2026, 11, 18, 9, 0));
+    expect(weeklyReport(store, MON).bestTime).toBeNull();
+    const [first] = store.listBlock("2026-11-16", 1);
+    clock.set(at(2026, 11, 16, 11, 0));
+    store.setStatus(first!.taskId, "done");
+    clock.set(at(2026, 11, 18, 9, 0));
+    expect(weeklyReport(store, MON).bestTime).toMatchObject({ weekday: 0, block: "Morning", onTime: 1, total: 3 });
   });
 });

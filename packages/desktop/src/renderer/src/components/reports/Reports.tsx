@@ -66,6 +66,7 @@ function Detail({ weekStart, onBack }: { weekStart: string; onBack(): void }) {
             ‹
           </button>
           <h1 className="t-h-l">{report.label}</h1>
+          {report.inProgress && <span className="chip chip--accent-outline">In progress</span>}
         </div>
       </header>
       <div className="stats stats--big">

@@ -19,6 +19,8 @@ export type ProcrastinationLevel = "Low" | "Medium" | "High";
 export interface WeeklyReport {
   weekStart: LocalDate;
   weekEnd: LocalDate;
+  /** The week has not finished yet, so its numbers are partway, not a result. */
+  inProgress: boolean;
   planned: number;
   done: number;
   unfinished: number;
@@ -77,9 +79,12 @@ export function weeklyReport(store: Store, weekStart: LocalDate, depth = 0): Wee
     }
   }
 
+  // A task counts as planned once the day it is on has begun (PRD FR-68). Days still ahead are
+  // not planned yet, so tomorrow's tasks are not misses.
+  const today = dateOf(store.clock.now());
   const rows = [...first.keys()].flatMap((id) => {
     const task = store.getTask(id);
-    return task ? [{ task, first: first.get(id)!, moves: moves.get(id) ?? [] }] : [];
+    return task && first.get(id)!.date <= today ? [{ task, first: first.get(id)!, moves: moves.get(id) ?? [] }] : [];
   });
 
   const finishedIn = (completedAt: number | null) => completedAt !== null && completedAt >= lo && completedAt < hi;
@@ -116,11 +121,12 @@ export function weeklyReport(store: Store, weekStart: LocalDate, depth = 0): Wee
     if (onTime(r)) g.onTime += 1;
     groups.set(key, g);
   }
-  const best = [...groups.values()].filter((g) => g.total >= 3).sort((a, b) => b.onTime / b.total - a.onTime / a.total || b.total - a.total)[0];
+  const best = [...groups.values()].filter((g) => g.total >= 3 && g.onTime > 0).sort((a, b) => b.onTime / b.total - a.onTime / a.total || b.total - a.total)[0];
 
   return {
     weekStart,
     weekEnd: end,
+    inProgress: today >= weekStart && today <= end,
     planned: planned.length,
     done: done.length,
     unfinished: unfinished.length,

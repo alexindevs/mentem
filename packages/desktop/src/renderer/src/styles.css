@@ -59,6 +59,11 @@
   --accent-subtle: #2b2e2b;
 }
 
+/* Native dropdown lists follow the theme, not the OS. */
+:root, [data-theme="white-green"], [data-theme="white-black"] { color-scheme: light; }
+[data-theme="black-orange"], [data-theme="black-white"] { color-scheme: dark; }
+select option { background: var(--bg); color: var(--text); }
+
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);

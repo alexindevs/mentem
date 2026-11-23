@@ -139,6 +139,10 @@
 .plan__schedule { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 28px; align-items: start; }
 .plan__left { display: grid; gap: 8px; }
 .plan__left h2 { margin: 0; }
+.plan__left--over { outline: 1px dashed var(--accent); outline-offset: 6px; border-radius: var(--radius-md); }
+.plan__placed { display: flex; align-items: flex-start; justify-content: space-between; gap: 4px; cursor: grab; }
+.plan__placed-x { flex: none; padding: 0 2px; border: 0; background: none; color: var(--text-muted, inherit); font-size: 14px; line-height: 16px; cursor: pointer; opacity: 0; transition: opacity var(--dur-base) var(--ease-out); }
+.plan__placed:hover .plan__placed-x, .plan__placed-x:focus-visible { opacity: 1; }
 .plan__task { cursor: grab; }
 .plan__grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; align-items: start; }
 .plan__day { display: grid; gap: 6px; justify-items: stretch; text-align: center; }

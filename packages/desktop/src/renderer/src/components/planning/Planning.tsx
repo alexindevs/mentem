@@ -47,6 +47,7 @@ function ScheduleStep({ data, reload }: { data: PlanningData; reload(): void }) 
   const other = data.week.unscheduled.filter((t) => !last.has(t.id));
   const [over, setOver] = useState<string | null>(null);
   const place = (id: string, date: string, slot: number) => void window.mentem.taskPlace(id, date, slot).then(reload);
+  const unplace = (id: string) => void window.mentem.taskPlace(id, null, null).then(reload);
   const row = (id: string, title: string, chip?: string) => (
     <div key={id} className="task-row plan__task" draggable onDragStart={(e) => { e.dataTransfer.setData(DRAG_TYPE, id); e.dataTransfer.effectAllowed = "move"; }}>
       <span className="task-row__check" aria-hidden="true" />
@@ -56,7 +57,12 @@ function ScheduleStep({ data, reload }: { data: PlanningData; reload(): void }) 
   );
   return (
     <div className="plan__schedule">
-      <div className="plan__left">
+      <div
+        className={`plan__left ${over === "left" ? "plan__left--over" : ""}`}
+        onDragOver={(e) => { if (e.dataTransfer.types.includes(DRAG_TYPE)) { e.preventDefault(); setOver("left"); } }}
+        onDragLeave={() => setOver(null)}
+        onDrop={(e) => { e.preventDefault(); setOver(null); const id = e.dataTransfer.getData(DRAG_TYPE); if (id) unplace(id); }}
+      >
         <h2 className="t-h-m">Unscheduled</h2>
         {lastTasks.length > 0 && <span className="t-caption muted">From last week</span>}
         {lastTasks.map((t) => row(t.id, t.title, "Last week"))}
@@ -82,8 +88,18 @@ function ScheduleStep({ data, reload }: { data: PlanningData; reload(): void }) 
                 >
                   <span className="t-caption muted">{b.name}</span>
                   {b.tasks.map((t) => (
-                    <span key={t.id} className="t-body-m-strong">
-                      {t.title}
+                    <span
+                      key={t.id}
+                      className="t-body-m-strong plan__placed"
+                      draggable={!t.done}
+                      onDragStart={(e) => { e.dataTransfer.setData(DRAG_TYPE, t.id); e.dataTransfer.effectAllowed = "move"; }}
+                    >
+                      <span className="plan__placed-title">{t.title}</span>
+                      {!t.done && (
+                        <button className="plan__placed-x" aria-label={`Unschedule ${t.title}`} onClick={() => unplace(t.id)}>
+                          ×
+                        </button>
+                      )}
                     </span>
                   ))}
                 </div>

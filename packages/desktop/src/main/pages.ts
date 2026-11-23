@@ -249,6 +249,7 @@ export function createPageApi({ store, engine, core, refresh }: Deps): PageApi {
       const detail: ReportDetail = {
         weekStart: start,
         label: range(start, r.weekEnd, LONG),
+        inProgress: r.inProgress,
         onTimePct: r.onTimePct,
         onTimeCount: r.onTimeCount,
         planned: r.planned,

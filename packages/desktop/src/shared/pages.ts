@@ -217,6 +217,8 @@ export interface ReportSummary {
 export interface ReportDetail {
   weekStart: string;
   label: string;
+  /** The week has not finished yet. */
+  inProgress: boolean;
   onTimePct: number;
   onTimeCount: number;
   planned: number;
